@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
-import { Import, Export, AlertTriangle } from 'lucide-react';
+import { FileInput, FileOutput, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const TaskImportExport = () => {
@@ -93,7 +93,7 @@ export const TaskImportExport = () => {
         onClick={() => fileInputRef.current?.click()}
         className="flex items-center"
       >
-        <Import className="h-4 w-4 mr-1" /> Import
+        <FileInput className="h-4 w-4 mr-1" /> Import
       </Button>
       
       <Button 
@@ -102,7 +102,7 @@ export const TaskImportExport = () => {
         onClick={handleExport}
         className="flex items-center"
       >
-        <Export className="h-4 w-4 mr-1" /> Export
+        <FileOutput className="h-4 w-4 mr-1" /> Export
       </Button>
       
       {/* Export Dialog */}
@@ -126,7 +126,7 @@ export const TaskImportExport = () => {
               Close
             </Button>
             <Button onClick={downloadExport}>
-              <Export className="h-4 w-4 mr-1" /> Download File
+              <FileOutput className="h-4 w-4 mr-1" /> Download File
             </Button>
           </DialogFooter>
         </DialogContent>
