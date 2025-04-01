@@ -1,7 +1,11 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Task, PriorityLevel, Category } from '../types/task';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from './AuthContext';
+import { SyncService } from '../services/syncService';
+import { NotificationService } from '../services/notificationService';
+import { toast } from 'sonner';
+import { Collaborator } from '../types/user';
 
 interface TaskContextType {
   tasks: Task[];
@@ -13,6 +17,10 @@ interface TaskContextType {
   addCategory: (category: Omit<Category, 'id'>) => void;
   getTasksByCategory: (categoryId: string) => Task[];
   getTasksByPriority: (priority: PriorityLevel) => Task[];
+  shareTask: (taskId: string, collaborators: Collaborator[]) => void;
+  unshareTask: (taskId: string) => void;
+  getSharedTasks: () => Task[];
+  getMyTasks: () => Task[];
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -22,6 +30,7 @@ interface TaskProviderProps {
 }
 
 export const TaskProvider = ({ children }: TaskProviderProps) => {
+  const { currentUser, isAuthenticated } = useAuth();
   const [tasks, setTasks] = useState<Task[]>(() => {
     // Load tasks from localStorage if available
     const savedTasks = localStorage.getItem('tasks');
@@ -40,6 +49,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     return savedCategories ? JSON.parse(savedCategories) : sampleCategories;
   });
 
+  // Initialize the sync service
+  useEffect(() => {
+    SyncService.init();
+  }, []);
+
   // Save to localStorage whenever tasks or categories change
   useEffect(() => {
     localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -48,6 +62,17 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   useEffect(() => {
     localStorage.setItem('categories', JSON.stringify(categories));
   }, [categories]);
+
+  // Schedule notifications for upcoming tasks
+  useEffect(() => {
+    if (isAuthenticated) {
+      tasks.forEach(task => {
+        if (!task.completed && task.dueDate) {
+          NotificationService.scheduleNotification(task);
+        }
+      });
+    }
+  }, [tasks, isAuthenticated]);
 
   const calculateAiScore = (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'aiScore'>): number => {
     // This is a simplified version of what would be a ML model in a real implementation
@@ -83,19 +108,43 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       id: uuidv4(),
       createdAt: now,
       updatedAt: now,
-      aiScore
+      aiScore,
+      userId: currentUser?.id // Associate task with current user
     };
+    
     setTasks([...tasks, newTask]);
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('add', 'task', newTask);
+      
+      // Schedule notification if due date exists
+      if (newTask.dueDate) {
+        NotificationService.scheduleNotification(newTask);
+      }
+    }
   };
 
   const updateTask = (id: string, updatedFields: Partial<Task>) => {
     setTasks(tasks.map(task => {
       if (task.id === id) {
         const updatedTask = { ...task, ...updatedFields, updatedAt: new Date() };
+        
         // Recalculate AI score if relevant fields changed
         if ('priority' in updatedFields || 'dueDate' in updatedFields || 'description' in updatedFields) {
           updatedTask.aiScore = calculateAiScore(updatedTask);
         }
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Reschedule notification if due date changed
+          if ('dueDate' in updatedFields && updatedTask.dueDate) {
+            NotificationService.scheduleNotification(updatedTask);
+          }
+        }
+        
         return updatedTask;
       }
       return task;
@@ -103,18 +152,121 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   };
 
   const deleteTask = (id: string) => {
+    const taskToDelete = tasks.find(t => t.id === id);
+    if (!taskToDelete) return;
+    
+    // Check if user has permission to delete
+    if (taskToDelete.userId && currentUser?.id !== taskToDelete.userId) {
+      const isCollaboratorWithEditRights = taskToDelete.collaborators?.some(
+        c => c.userId === currentUser?.id && (c.role === 'editor' || c.role === 'owner')
+      );
+      
+      if (!isCollaboratorWithEditRights) {
+        toast.error("You don't have permission to delete this task");
+        return;
+      }
+    }
+    
     setTasks(tasks.filter(task => task.id !== id));
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('delete', 'task', { id });
+    }
   };
 
   const completeTask = (id: string) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed, updatedAt: new Date() } : task
-    ));
+    setTasks(tasks.map(task => {
+      if (task.id === id) {
+        const updatedTask = { 
+          ...task, 
+          completed: !task.completed, 
+          updatedAt: new Date() 
+        };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Send notification for task completion
+          if (updatedTask.completed) {
+            NotificationService.sendNotification(
+              'Task Completed', 
+              { body: `You've completed: ${task.title}` }
+            );
+          }
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
   };
 
   const addCategory = (category: Omit<Category, 'id'>) => {
     const newCategory = { ...category, id: uuidv4() };
     setCategories([...categories, newCategory]);
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('add', 'category', newCategory);
+    }
+  };
+
+  const shareTask = (taskId: string, collaborators: Collaborator[]) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        // Only the task owner can share it
+        if (task.userId !== currentUser?.id) {
+          toast.error("Only the task owner can share this task");
+          return task;
+        }
+        
+        const updatedTask = {
+          ...task,
+          collaborators,
+          shared: true,
+          updatedAt: new Date()
+        };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+          toast.success("Task shared successfully");
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
+  };
+
+  const unshareTask = (taskId: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        // Only the task owner can unshare it
+        if (task.userId !== currentUser?.id) {
+          toast.error("Only the task owner can unshare this task");
+          return task;
+        }
+        
+        const updatedTask = {
+          ...task,
+          collaborators: [],
+          shared: false,
+          updatedAt: new Date()
+        };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+          toast.success("Task is no longer shared");
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
   };
 
   const getTasksByCategory = (categoryId: string) => {
@@ -123,6 +275,22 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
 
   const getTasksByPriority = (priority: PriorityLevel) => {
     return tasks.filter(task => task.priority === priority);
+  };
+
+  const getSharedTasks = () => {
+    if (!currentUser) return [];
+    
+    return tasks.filter(task => 
+      // Tasks shared with me
+      (task.collaborators?.some(c => c.userId === currentUser.id)) ||
+      // Tasks I've shared with others
+      (task.userId === currentUser.id && task.shared)
+    );
+  };
+
+  const getMyTasks = () => {
+    if (!currentUser) return tasks;
+    return tasks.filter(task => task.userId === currentUser.id);
   };
 
   return (
@@ -135,7 +303,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       completeTask,
       addCategory,
       getTasksByCategory,
-      getTasksByPriority
+      getTasksByPriority,
+      shareTask,
+      unshareTask,
+      getSharedTasks,
+      getMyTasks
     }}>
       {children}
     </TaskContext.Provider>

@@ -1,6 +1,12 @@
 
 export type PriorityLevel = 'low' | 'medium' | 'high';
 
+export interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -9,13 +15,12 @@ export interface Task {
   priority: PriorityLevel;
   completed: boolean;
   category: string;
-  aiScore?: number; // AI-calculated priority score
+  aiScore: number;
   createdAt: Date;
   updatedAt: Date;
+  userId?: string; // Owner of the task
+  collaborators?: Collaborator[];
+  shared?: boolean;
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  color: string;
-}
+import { Collaborator } from './user';
