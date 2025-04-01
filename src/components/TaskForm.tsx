@@ -73,7 +73,11 @@ export const TaskForm = ({ task, isOpen, onClose }: TaskFormProps) => {
       updateTask(task.id, values);
     } else {
       addTask({
-        ...values,
+        title: values.title,
+        description: values.description || '',
+        dueDate: values.dueDate,
+        priority: values.priority,
+        category: values.category,
         completed: false,
       });
     }
