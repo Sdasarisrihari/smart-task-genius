@@ -5,32 +5,21 @@ import { TaskCard } from './TaskCard';
 import { TaskForm } from './TaskForm';
 import { Task } from '../types/task';
 import { 
-  BarChart, 
   PlusCircle, 
-  ListFilter, 
-  Clock, 
   CheckCircle2, 
-  ArrowUpDown, 
-  Brain, 
   SearchIcon, 
-  MicIcon 
+  MicIcon,
+  Brain,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from './ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Progress } from './ui/progress';
 import { toast } from 'sonner';
 import { 
-  BarChart as RechartsBarChart, 
+  BarChart, 
   Bar, 
   XAxis, 
   YAxis, 
@@ -39,16 +28,26 @@ import {
   Tooltip as ChartTooltip,
   Legend
 } from 'recharts';
+import { AdvancedFilter, FilterOptions } from './AdvancedFilter';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export const Dashboard = () => {
   const { tasks, categories } = useTaskContext();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<Task | undefined>(undefined);
-  const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("ai");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [filterOptions, setFilterOptions] = useState<FilterOptions>({
+    priority: 'all',
+    category: 'all',
+    completed: 'all',
+    searchQuery: '',
+    dateRange: { from: undefined, to: undefined },
+    aiScoreMin: 0,
+    hasAttachments: null,
+    isDependency: null
+  });
+  const isMobile = useIsMobile();
 
   const openNewTaskForm = () => {
     setTaskToEdit(undefined);
@@ -65,33 +64,74 @@ export const Dashboard = () => {
       description: "This feature would integrate with SpeechRecognition API in a full implementation.",
     });
   };
-
+  
+  const handleFilterChange = (newFilters: FilterOptions) => {
+    setFilterOptions(newFilters);
+    setSearchQuery(newFilters.searchQuery);
+  };
+  
   const filterTasks = (tasks: Task[]) => {
     return tasks
       .filter(task => {
+        // Simple search filter
         const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                               task.description.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesPriority = filterPriority === "all" || task.priority === filterPriority;
-        const matchesCategory = filterCategory === "all" || task.category === filterCategory;
-        const matchesTab = (activeTab === "all") || 
-                          (activeTab === "completed" && task.completed) ||
-                          (activeTab === "incomplete" && !task.completed);
+                            task.description.toLowerCase().includes(searchQuery.toLowerCase());
         
-        return matchesSearch && matchesPriority && matchesCategory && matchesTab;
+        // Tab-based filtering
+        const matchesTab = (activeTab === "all") || 
+                        (activeTab === "completed" && task.completed) ||
+                        (activeTab === "incomplete" && !task.completed);
+        
+        // Advanced filters
+        const matchesPriority = filterOptions.priority === 'all' || task.priority === filterOptions.priority;
+        const matchesCategory = filterOptions.category === 'all' || task.category === filterOptions.category;
+        
+        const matchesCompletion = filterOptions.completed === 'all' || 
+                                (filterOptions.completed === 'completed' && task.completed) ||
+                                (filterOptions.completed === 'incomplete' && !task.completed);
+        
+        // Date range filter
+        let matchesDateRange = true;
+        if (filterOptions.dateRange.from || filterOptions.dateRange.to) {
+          if (!task.dueDate) {
+            matchesDateRange = false;
+          } else {
+            const taskDate = new Date(task.dueDate);
+            if (filterOptions.dateRange.from && taskDate < filterOptions.dateRange.from) {
+              matchesDateRange = false;
+            }
+            if (filterOptions.dateRange.to && taskDate > filterOptions.dateRange.to) {
+              matchesDateRange = false;
+            }
+          }
+        }
+        
+        // AI Score filter
+        const matchesAiScore = task.aiScore >= filterOptions.aiScoreMin;
+        
+        // Attachments filter
+        const matchesAttachments = filterOptions.hasAttachments === null || 
+                                (filterOptions.hasAttachments === true && task.attachments && task.attachments.length > 0) ||
+                                (filterOptions.hasAttachments === false && (!task.attachments || task.attachments.length === 0));
+        
+        // Dependencies filter
+        const matchesDependency = filterOptions.isDependency === null || 
+                                (filterOptions.isDependency === true && task.dependencies && task.dependencies.length > 0) || 
+                                (filterOptions.isDependency === false && (!task.dependencies || task.dependencies.length === 0));
+        
+        return matchesSearch && 
+              matchesTab && 
+              matchesPriority && 
+              matchesCategory && 
+              matchesCompletion && 
+              matchesDateRange && 
+              matchesAiScore && 
+              matchesAttachments && 
+              matchesDependency;
       })
       .sort((a, b) => {
-        switch (sortBy) {
-          case "ai":
-            return (b.aiScore || 0) - (a.aiScore || 0);
-          case "due":
-            if (!a.dueDate) return 1;
-            if (!b.dueDate) return -1;
-            return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-          case "title":
-            return a.title.localeCompare(b.title);
-          default:
-            return 0;
-        }
+        // Sort by AI score by default
+        return (b.aiScore || 0) - (a.aiScore || 0);
       });
   };
 
@@ -173,7 +213,7 @@ export const Dashboard = () => {
             </CardHeader>
             <CardContent className="h-[250px]">
               <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart data={categoryData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                <BarChart data={categoryData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -181,7 +221,7 @@ export const Dashboard = () => {
                   <Legend />
                   <Bar dataKey="completed" stackId="a" name="Completed" fill="#10B981" />
                   <Bar dataKey="remaining" stackId="a" name="Remaining" fill="#6366F1" />
-                </RechartsBarChart>
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -193,20 +233,20 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                <div className="font-medium flex items-center text-purple-900 mb-1">
+              <div className="bg-purple-50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div className="font-medium flex items-center text-purple-900 dark:text-purple-300 mb-1">
                   <Brain className="h-4 w-4 mr-1" /> Priority Analysis
                 </div>
-                <p className="text-sm text-purple-800">
+                <p className="text-sm text-purple-800 dark:text-purple-300">
                   You have {highPriorityTasks} high-priority tasks that need attention first.
                 </p>
               </div>
               
-              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                <div className="font-medium flex items-center text-blue-900 mb-1">
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="font-medium flex items-center text-blue-900 dark:text-blue-300 mb-1">
                   <Clock className="h-4 w-4 mr-1" /> Scheduling Suggestion
                 </div>
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
                   Consider allocating morning hours to high-priority tasks for optimal productivity.
                 </p>
               </div>
@@ -236,64 +276,11 @@ export const Dashboard = () => {
         </div>
         
         <div className="w-full sm:w-auto flex items-center gap-2">
+          <AdvancedFilter onFilterChange={handleFilterChange} />
           <Button variant="outline" className="gap-2" onClick={openNewTaskForm}>
             <PlusCircle className="h-4 w-4" />
             New Task
           </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="flex items-center gap-1">
-          <ListFilter className="h-4 w-4" />
-          <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="w-[130px] h-8 text-xs">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Priorities</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <ListFilter className="h-4 w-4" />
-          <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="w-[130px] h-8 text-xs">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Categories</SelectItem>
-              {categories.map(category => (
-                <SelectItem key={category.id} value={category.id}>
-                  <div className="flex items-center">
-                    <div 
-                      className="h-2 w-2 rounded-full mr-2" 
-                      style={{ backgroundColor: category.color }} 
-                    />
-                    {category.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <ArrowUpDown className="h-4 w-4" />
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[130px] h-8 text-xs">
-              <SelectValue placeholder="Sort By" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ai">AI Priority</SelectItem>
-              <SelectItem value="due">Due Date</SelectItem>
-              <SelectItem value="title">Title</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
       </div>
 
@@ -317,7 +304,7 @@ export const Dashboard = () => {
                 </div>
                 <h3 className="font-medium text-lg mb-1">No tasks found</h3>
                 <p className="text-muted-foreground mb-4">
-                  {searchQuery 
+                  {searchQuery || filterOptions.searchQuery
                     ? "Try adjusting your search or filters" 
                     : "Add some tasks to get started"}
                 </p>
@@ -336,3 +323,5 @@ export const Dashboard = () => {
     </div>
   );
 };
+
+import { Clock } from 'lucide-react';

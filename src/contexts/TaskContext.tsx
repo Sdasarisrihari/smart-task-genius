@@ -1,5 +1,6 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Task, PriorityLevel, Category } from '../types/task';
+import { Task, PriorityLevel, Category, TimeLogEntry, TaskAttachment } from '../types/task';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { SyncService } from '../services/syncService';
@@ -15,12 +16,28 @@ interface TaskContextType {
   deleteTask: (id: string) => void;
   completeTask: (id: string) => void;
   addCategory: (category: Omit<Category, 'id'>) => void;
+  updateCategory: (id: string, category: Partial<Category>) => void;
+  deleteCategory: (id: string) => void;
   getTasksByCategory: (categoryId: string) => Task[];
   getTasksByPriority: (priority: PriorityLevel) => Task[];
   shareTask: (taskId: string, collaborators: Collaborator[]) => void;
   unshareTask: (taskId: string) => void;
   getSharedTasks: () => Task[];
   getMyTasks: () => Task[];
+  saveTemplate: (taskId: string) => void;
+  createFromTemplate: (templateId: string) => void;
+  getTemplates: () => Task[];
+  addTaskDependency: (taskId: string, dependsOnId: string) => void;
+  removeTaskDependency: (taskId: string, dependsOnId: string) => void;
+  getDependentTasks: (taskId: string) => Task[];
+  getTaskDependencies: (taskId: string) => Task[];
+  addTimeLog: (taskId: string, log: Omit<TimeLogEntry, 'id'>) => void;
+  addAttachment: (taskId: string, attachment: Omit<TaskAttachment, 'id'>) => void;
+  removeAttachment: (taskId: string, attachmentId: string) => void;
+  exportTasks: () => string;
+  importTasks: (jsonData: string) => void;
+  getTasksByDateRange: (startDate: Date, endDate: Date) => Task[];
+  suggestTaskPriorities: () => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -40,6 +57,14 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
           dueDate: task.dueDate ? new Date(task.dueDate) : null,
           createdAt: new Date(task.createdAt),
           updatedAt: new Date(task.updatedAt),
+          timeTracking: task.timeTracking ? {
+            ...task.timeTracking,
+            logs: task.timeTracking.logs?.map((log: any) => ({
+              ...log,
+              startTime: new Date(log.startTime),
+              endTime: log.endTime ? new Date(log.endTime) : null
+            }))
+          } : undefined
         })) 
       : sampleTasks;
   });
@@ -96,6 +121,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     // Length of description (complexity proxy)
     const complexity = task.description.length;
     score += Math.min(10, Math.floor(complexity / 50));
+
+    // Dependencies factor
+    if (task.dependencies && task.dependencies.length > 0) {
+      score += 15;
+    }
     
     return Math.min(100, score);
   };
@@ -131,7 +161,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         const updatedTask = { ...task, ...updatedFields, updatedAt: new Date() };
         
         // Recalculate AI score if relevant fields changed
-        if ('priority' in updatedFields || 'dueDate' in updatedFields || 'description' in updatedFields) {
+        if ('priority' in updatedFields || 'dueDate' in updatedFields || 'description' in updatedFields || 'dependencies' in updatedFields) {
           updatedTask.aiScore = calculateAiScore(updatedTask);
         }
         
@@ -212,6 +242,46 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       SyncService.queueOperation('add', 'category', newCategory);
     }
   };
+  
+  const updateCategory = (id: string, updatedFields: Partial<Category>) => {
+    setCategories(categories.map(category => {
+      if (category.id === id) {
+        const updatedCategory = { ...category, ...updatedFields };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'category', updatedCategory);
+        }
+        
+        return updatedCategory;
+      }
+      return category;
+    }));
+  };
+  
+  const deleteCategory = (id: string) => {
+    // Confirm category has no tasks before deleting
+    const hasTasks = tasks.some(task => task.category === id);
+    
+    if (hasTasks) {
+      // Optionally reassign tasks to another category
+      const defaultCategoryId = categories.find(c => c.id !== id)?.id || 'uncategorized';
+      
+      setTasks(tasks.map(task => {
+        if (task.category === id) {
+          return { ...task, category: defaultCategoryId };
+        }
+        return task;
+      }));
+    }
+    
+    setCategories(categories.filter(category => category.id !== id));
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('delete', 'category', { id });
+    }
+  };
 
   const shareTask = (taskId: string, collaborators: Collaborator[]) => {
     setTasks(tasks.map(task => {
@@ -269,6 +339,214 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     }));
   };
 
+  const saveTemplate = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const templateTask: Task = {
+      ...task,
+      id: uuidv4(),
+      isTemplate: true,
+      completed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    
+    setTasks([...tasks, templateTask]);
+    toast.success("Task saved as template");
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('add', 'task', templateTask);
+    }
+  };
+  
+  const createFromTemplate = (templateId: string) => {
+    const template = tasks.find(t => t.id === templateId && t.isTemplate);
+    if (!template) return;
+    
+    const newTask: Task = {
+      ...template,
+      id: uuidv4(),
+      isTemplate: false,
+      completed: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId: currentUser?.id,
+    };
+    
+    setTasks([...tasks, newTask]);
+    toast.success("Task created from template");
+    
+    // Queue for sync when online
+    if (isAuthenticated) {
+      SyncService.queueOperation('add', 'task', newTask);
+    }
+  };
+  
+  const getTemplates = () => {
+    return tasks.filter(task => task.isTemplate);
+  };
+
+  const addTaskDependency = (taskId: string, dependsOnId: string) => {
+    // Check to prevent circular dependencies
+    const dependsOnTask = tasks.find(t => t.id === dependsOnId);
+    if (dependsOnTask?.dependencies?.includes(taskId)) {
+      toast.error("Cannot add circular dependency");
+      return;
+    }
+    
+    setTasks(tasks.map(task => {
+      if (task.id === taskId) {
+        const dependencies = task.dependencies || [];
+        if (dependencies.includes(dependsOnId)) {
+          toast.error("Dependency already exists");
+          return task;
+        }
+        
+        const updatedTask = {
+          ...task,
+          dependencies: [...dependencies, dependsOnId],
+          updatedAt: new Date()
+        };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
+  };
+  
+  const removeTaskDependency = (taskId: string, dependsOnId: string) => {
+    setTasks(tasks.map(task => {
+      if (task.id === taskId && task.dependencies) {
+        const updatedTask = {
+          ...task,
+          dependencies: task.dependencies.filter(id => id !== dependsOnId),
+          updatedAt: new Date()
+        };
+        
+        // Queue for sync when online
+        if (isAuthenticated) {
+          SyncService.queueOperation('update', 'task', updatedTask);
+        }
+        
+        return updatedTask;
+      }
+      return task;
+    }));
+  };
+  
+  const getDependentTasks = (taskId: string) => {
+    // Return tasks that depend on this task
+    return tasks.filter(task => 
+      task.dependencies && task.dependencies.includes(taskId)
+    );
+  };
+  
+  const getTaskDependencies = (taskId: string) => {
+    // Return tasks that this task depends on
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.dependencies) return [];
+    
+    return tasks.filter(t => task.dependencies?.includes(t.id));
+  };
+
+  const addTimeLog = (taskId: string, log: Omit<TimeLogEntry, 'id'>) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const newLog: TimeLogEntry = { ...log, id: uuidv4() };
+    const currentLogs = task.timeTracking?.logs || [];
+    const currentActualMinutes = task.timeTracking?.actualMinutes || 0;
+    
+    const updatedTask = {
+      ...task,
+      timeTracking: {
+        estimatedMinutes: task.timeTracking?.estimatedMinutes || 0,
+        actualMinutes: currentActualMinutes + log.durationMinutes,
+        logs: [...currentLogs, newLog]
+      },
+      updatedAt: new Date()
+    };
+    
+    updateTask(taskId, updatedTask);
+  };
+
+  const addAttachment = (taskId: string, attachment: Omit<TaskAttachment, 'id'>) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+    
+    const newAttachment: TaskAttachment = { ...attachment, id: uuidv4() };
+    const currentAttachments = task.attachments || [];
+    
+    updateTask(taskId, {
+      attachments: [...currentAttachments, newAttachment]
+    });
+    
+    toast.success("Attachment added");
+  };
+  
+  const removeAttachment = (taskId: string, attachmentId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !task.attachments) return;
+    
+    updateTask(taskId, {
+      attachments: task.attachments.filter(a => a.id !== attachmentId)
+    });
+    
+    toast.success("Attachment removed");
+  };
+
+  const exportTasks = () => {
+    // Export tasks as JSON string
+    const tasksToExport = currentUser 
+      ? tasks.filter(task => task.userId === currentUser.id || !task.userId)
+      : tasks;
+    
+    return JSON.stringify(tasksToExport);
+  };
+  
+  const importTasks = (jsonData: string) => {
+    try {
+      const importedTasks = JSON.parse(jsonData);
+      
+      if (!Array.isArray(importedTasks)) {
+        throw new Error("Invalid import format");
+      }
+      
+      // Process imported tasks
+      const now = new Date();
+      const processedTasks = importedTasks.map(task => ({
+        ...task,
+        id: uuidv4(), // Generate new IDs
+        userId: currentUser?.id,
+        createdAt: now,
+        updatedAt: now,
+        dueDate: task.dueDate ? new Date(task.dueDate) : null
+      }));
+      
+      // Add to existing tasks
+      setTasks([...tasks, ...processedTasks]);
+      toast.success(`Imported ${processedTasks.length} tasks successfully`);
+    } catch (err) {
+      toast.error("Failed to import tasks. Invalid format.");
+      console.error(err);
+    }
+  };
+
+  const getTasksByDateRange = (startDate: Date, endDate: Date) => {
+    return tasks.filter(task => {
+      if (!task.dueDate) return false;
+      const dueDate = new Date(task.dueDate);
+      return dueDate >= startDate && dueDate <= endDate;
+    });
+  };
+
   const getTasksByCategory = (categoryId: string) => {
     return tasks.filter(task => task.category === categoryId);
   };
@@ -293,6 +571,38 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     return tasks.filter(task => task.userId === currentUser.id);
   };
 
+  const suggestTaskPriorities = () => {
+    // Simulate AI-based priority suggestions
+    const updatedTasks = tasks.map(task => {
+      if (task.completed) return task;
+      
+      // Calculate a new AI score for each task
+      const newScore = calculateAiScore(task);
+      
+      // Determine if priority should change based on score
+      let suggestedPriority: PriorityLevel = task.priority;
+      
+      if (newScore >= 70 && task.priority !== 'high') {
+        suggestedPriority = 'high';
+      } else if (newScore < 70 && newScore >= 40 && task.priority !== 'medium') {
+        suggestedPriority = 'medium';
+      } else if (newScore < 40 && task.priority !== 'low') {
+        suggestedPriority = 'low';
+      }
+      
+      // Only update if different from current
+      if (suggestedPriority !== task.priority) {
+        toast.info(`AI suggested changing "${task.title}" priority to ${suggestedPriority}`);
+        return { ...task, priority: suggestedPriority, aiScore: newScore, updatedAt: new Date() };
+      }
+      
+      return { ...task, aiScore: newScore };
+    });
+    
+    setTasks(updatedTasks);
+    toast.success("AI priority suggestions applied");
+  };
+
   return (
     <TaskContext.Provider value={{
       tasks,
@@ -302,12 +612,28 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       deleteTask,
       completeTask,
       addCategory,
+      updateCategory,
+      deleteCategory,
       getTasksByCategory,
       getTasksByPriority,
       shareTask,
       unshareTask,
       getSharedTasks,
-      getMyTasks
+      getMyTasks,
+      saveTemplate,
+      createFromTemplate,
+      getTemplates,
+      addTaskDependency,
+      removeTaskDependency,
+      getDependentTasks,
+      getTaskDependencies,
+      addTimeLog,
+      addAttachment,
+      removeAttachment,
+      exportTasks,
+      importTasks,
+      getTasksByDateRange,
+      suggestTaskPriorities
     }}>
       {children}
     </TaskContext.Provider>
