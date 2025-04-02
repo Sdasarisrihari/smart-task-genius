@@ -26,13 +26,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false,
-      // Use onError within a meta object for error handling
-      meta: {
-        onError: (error: Error) => {
-          console.error('Query error:', error);
-        }
-      }
+      refetchOnWindowFocus: false
     }
   }
 });
@@ -51,9 +45,9 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <TaskProvider>
+      <AuthProvider>
+        <TaskProvider>
+          <TooltipProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter>
@@ -135,9 +129,9 @@ const App = () => {
                 </main>
               </div>
             </BrowserRouter>
-          </TaskProvider>
-        </AuthProvider>
-      </TooltipProvider>
+          </TooltipProvider>
+        </TaskProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };

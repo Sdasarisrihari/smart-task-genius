@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import {
   Card,
@@ -36,27 +35,33 @@ export const DashboardAnalytics = () => {
   const { data: taskAnalytics, isLoading: isLoadingTaskAnalytics } = useQuery({
     queryKey: ['taskAnalytics'],
     queryFn: () => apiService.getTaskAnalytics(),
-    onError: (error) => {
-      console.error('Failed to fetch task analytics:', error);
-      // Fall back to local data if API fails
+    meta: {
+      onError: (error: Error) => {
+        console.error('Failed to fetch task analytics:', error);
+        // Fall back to local data if API fails
+      }
     }
   });
 
   const { data: productivityMetrics, isLoading: isLoadingProductivity } = useQuery({
     queryKey: ['productivityMetrics'],
     queryFn: () => apiService.getProductivityMetrics(),
-    onError: (error) => {
-      console.error('Failed to fetch productivity metrics:', error);
-      // Fall back to local data if API fails
+    meta: {
+      onError: (error: Error) => {
+        console.error('Failed to fetch productivity metrics:', error);
+        // Fall back to local data if API fails
+      }
     }
   });
 
   const { data: completionRates, isLoading: isLoadingCompletionRates } = useQuery({
     queryKey: ['completionRates'],
     queryFn: () => apiService.getCompletionRateByCategory(),
-    onError: (error) => {
-      console.error('Failed to fetch completion rates:', error);
-      // Fall back to local data if API fails
+    meta: {
+      onError: (error: Error) => {
+        console.error('Failed to fetch completion rates:', error);
+        // Fall back to local data if API fails
+      }
     }
   });
 
@@ -104,10 +109,18 @@ export const DashboardAnalytics = () => {
   // Data for charts (use API data or fallback to local)
   const localData = generateLocalTaskData();
   const chartData = {
-    overview: taskAnalytics?.overview || localData.overview,
-    priority: taskAnalytics?.priority || localData.priority,
+    overview: taskAnalytics ? (taskAnalytics as any)?.overview || localData.overview : localData.overview,
+    priority: taskAnalytics ? (taskAnalytics as any)?.priority || localData.priority : localData.priority,
     categories: completionRates || localData.categories,
-    productivity: productivityMetrics?.timeSeriesData || [
+    productivity: productivityMetrics ? (productivityMetrics as any)?.timeSeriesData || [
+      { date: '2023-01-01', completed: 3, created: 5 },
+      { date: '2023-01-02', completed: 4, created: 2 },
+      { date: '2023-01-03', completed: 7, created: 6 },
+      { date: '2023-01-04', completed: 5, created: 4 },
+      { date: '2023-01-05', completed: 6, created: 3 },
+      { date: '2023-01-06', completed: 8, created: 5 },
+      { date: '2023-01-07', completed: 9, created: 4 }
+    ] : [
       { date: '2023-01-01', completed: 3, created: 5 },
       { date: '2023-01-02', completed: 4, created: 2 },
       { date: '2023-01-03', completed: 7, created: 6 },
