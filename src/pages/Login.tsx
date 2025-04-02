@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useApiKey } from '@/hooks/useApiKey';
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -26,6 +27,7 @@ const formSchema = z.object({
 const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
+  const { isConfigured } = useApiKey();
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -45,9 +47,11 @@ const Login = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       await login(values.email, values.password);
+      toast.success("Login successful!");
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
+      toast.error("Login failed. Please check your credentials.");
     }
   };
 
@@ -57,6 +61,11 @@ const Login = () => {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
+          {isConfigured && (
+            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded">
+              API connection configured successfully
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <Form {...form}>
