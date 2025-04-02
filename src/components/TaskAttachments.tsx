@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Paperclip, FileText, Image, File, Download, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { AdvancedFileUpload } from './AdvancedFileUpload';
 
 interface TaskAttachmentsProps {
   task: Task;
@@ -14,6 +15,7 @@ interface TaskAttachmentsProps {
 export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
   const { addAttachment, removeAttachment } = useTaskContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploader, setShowUploader] = useState(false);
   
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -54,6 +56,10 @@ export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
   
+  const handleUploadComplete = () => {
+    setShowUploader(false);
+  };
+  
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -61,21 +67,21 @@ export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
           <Paperclip className="h-5 w-5 mr-2" /> Attachments
         </h3>
         <div>
-          <Input
-            type="file"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-          />
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setShowUploader(!showUploader)}
           >
-            <Upload className="h-4 w-4 mr-1" /> Upload File
+            <Upload className="h-4 w-4 mr-1" /> {showUploader ? 'Cancel' : 'Upload File'}
           </Button>
         </div>
       </div>
+      
+      {showUploader && (
+        <div className="mb-4">
+          <AdvancedFileUpload taskId={task.id} onUploadComplete={handleUploadComplete} />
+        </div>
+      )}
       
       <div>
         {(!task.attachments || task.attachments.length === 0) ? (

@@ -15,7 +15,12 @@ export const API_KEY = import.meta.env.VITE_API_KEY || '';
  * @returns {boolean} Whether the API key is available
  */
 export const isApiKeyConfigured = (): boolean => {
-  return !!API_KEY;
+  // Check both environment variable and localStorage (for browser persistence)
+  const envApiKey = import.meta.env.VITE_API_KEY;
+  const localApiKey = localStorage.getItem('VITE_API_KEY');
+  
+  // Return true if either source has an API key
+  return !!(envApiKey || localApiKey);
 };
 
 /**
@@ -23,8 +28,25 @@ export const isApiKeyConfigured = (): boolean => {
  * @returns {Record<string, string>} Headers object with authorization
  */
 export const getAuthHeaders = (): Record<string, string> => {
+  // First try to use the environment variable
+  let apiKey = import.meta.env.VITE_API_KEY;
+  
+  // If not available, try to use from localStorage
+  if (!apiKey) {
+    apiKey = localStorage.getItem('VITE_API_KEY') || '';
+  }
+  
   return {
-    'Authorization': `Bearer ${API_KEY}`,
+    'Authorization': `Bearer ${apiKey}`,
     'Content-Type': 'application/json'
   };
+};
+
+/**
+ * Store an API key in localStorage for persistence
+ * @param {string} key - The API key to store
+ */
+export const storeApiKey = (key: string): void => {
+  localStorage.setItem('VITE_API_KEY', key);
+  console.log('API key stored in localStorage');
 };

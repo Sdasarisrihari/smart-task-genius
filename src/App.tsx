@@ -20,7 +20,22 @@ import React, { useEffect } from "react";
 import { registerServiceWorker } from "./services/notificationService";
 import { SharedTasks } from "./pages/SharedTasks";
 
-const queryClient = new QueryClient();
+// Configure the QueryClient with default options
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: false,
+      // Use onError within a meta object for error handling
+      meta: {
+        onError: (error: Error) => {
+          console.error('Query error:', error);
+        }
+      }
+    }
+  }
+});
 
 const App = () => {
   // Register service worker for offline support and notifications
@@ -28,6 +43,10 @@ const App = () => {
     registerServiceWorker().then(success => {
       console.log(success ? "Service worker registered" : "Service worker registration failed");
     });
+    
+    // Apply theme from preferences
+    const theme = localStorage.getItem('theme') || 'light';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
   }, []);
 
   return (

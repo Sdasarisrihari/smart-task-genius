@@ -21,6 +21,13 @@ export const NotificationService = {
       return false;
     }
 
+    // Check if notifications are enabled in user preferences
+    const notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false';
+    if (!notificationsEnabled) {
+      console.log('Notifications are disabled in user preferences');
+      return false;
+    }
+
     if (Notification.permission !== 'granted') {
       console.warn('Notification permission not granted');
       return false;
@@ -55,6 +62,13 @@ export const NotificationService = {
   },
 
   scheduleNotification(task: {id: string, title: string, dueDate: Date | null}): void {
+    // Check if notifications are enabled in user preferences
+    const notificationsEnabled = localStorage.getItem('notificationsEnabled') !== 'false';
+    if (!notificationsEnabled) {
+      console.log('Notifications are disabled in user preferences');
+      return;
+    }
+    
     if (!task.dueDate) return;
     
     const now = new Date();
@@ -78,6 +92,25 @@ export const NotificationService = {
           data: `/task/${task.id}`
         });
       }, timeUntilDue - (60 * 60 * 1000)); // 1 hour before due
+    }
+  },
+  
+  // New method for sending email notifications
+  async sendEmailNotification(to: string, subject: string, content: string): Promise<boolean> {
+    // Check if email notifications are enabled
+    const emailNotificationsEnabled = localStorage.getItem('emailNotifications') === 'true';
+    if (!emailNotificationsEnabled) {
+      console.log('Email notifications are disabled in user preferences');
+      return false;
+    }
+    
+    try {
+      // In a real app, this would call an API endpoint
+      console.log(`[Email Notification] To: ${to}, Subject: ${subject}, Content: ${content}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send email notification:', error);
+      return false;
     }
   }
 };

@@ -115,7 +115,7 @@ export const TaskForm = ({ task, isOpen, onClose }: TaskFormProps) => {
         saveTemplate(task.id);
       }
     } else {
-      // Create new task
+      // Create new task - fixed the error by properly handling the return value
       const newTask = addTask({
         title: values.title,
         description: values.description || '',
@@ -126,7 +126,8 @@ export const TaskForm = ({ task, isOpen, onClose }: TaskFormProps) => {
         timeTracking
       });
       
-      if (saveAsTemplate && newTask) {
+      // Only attempt to save as template if newTask is returned and has an id
+      if (saveAsTemplate && newTask && newTask.id) {
         saveTemplate(newTask.id);
       }
     }

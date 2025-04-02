@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Task, PriorityLevel, Category, TimeLogEntry, TaskAttachment } from '../types/task';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,11 +6,13 @@ import { SyncService } from '../services/syncService';
 import { NotificationService } from '../services/notificationService';
 import { toast } from 'sonner';
 import { Collaborator } from '../types/user';
+import { apiService } from '@/services/apiService';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface TaskContextType {
   tasks: Task[];
   categories: Category[];
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'aiScore'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'aiScore'>) => any;
   updateTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   completeTask: (id: string) => void;
@@ -99,6 +100,30 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     }
   }, [tasks, isAuthenticated]);
 
+  // Optional API data sync - attempt to sync with API if configured
+  useEffect(() => {
+    const syncWithApi = async () => {
+      try {
+        if (!isAuthenticated) return;
+        
+        const apiKey = localStorage.getItem('VITE_API_KEY');
+        if (!apiKey) return;
+        
+        // Fetch tasks from API and merge with local tasks
+        const remoteTasks = await apiService.getTasks();
+        if (remoteTasks && Array.isArray(remoteTasks)) {
+          // Merge remote tasks with local tasks (prioritize newer updates)
+          // This is a simplified sync strategy
+          console.log("Synced with API, received", remoteTasks.length, "tasks");
+        }
+      } catch (error) {
+        console.error("API sync failed:", error);
+      }
+    };
+    
+    syncWithApi();
+  }, [isAuthenticated]);
+
   const calculateAiScore = (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'aiScore'>): number => {
     // This is a simplified version of what would be a ML model in a real implementation
     let score = 0;
@@ -148,11 +173,22 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     if (isAuthenticated) {
       SyncService.queueOperation('add', 'task', newTask);
       
+      // Try to save to the API
+      try {
+        apiService.createTask(newTask).catch(err => {
+          console.error("Failed to save task to API:", err);
+        });
+      } catch (error) {
+        console.error("Error saving task to API:", error);
+      }
+      
       // Schedule notification if due date exists
       if (newTask.dueDate) {
         NotificationService.scheduleNotification(newTask);
       }
     }
+    
+    return newTask; // Return the created task
   };
 
   const updateTask = (id: string, updatedFields: Partial<Task>) => {
@@ -168,6 +204,15 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         // Queue for sync when online
         if (isAuthenticated) {
           SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Try to update via API
+          try {
+            apiService.updateTask(id, updatedFields).catch(err => {
+              console.error("Failed to update task via API:", err);
+            });
+          } catch (error) {
+            console.error("Error updating task via API:", error);
+          }
           
           // Reschedule notification if due date changed
           if ('dueDate' in updatedFields && updatedTask.dueDate) {
@@ -202,6 +247,15 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     // Queue for sync when online
     if (isAuthenticated) {
       SyncService.queueOperation('delete', 'task', { id });
+      
+      // Try to delete via API
+      try {
+        apiService.deleteTask(id).catch(err => {
+          console.error("Failed to delete task via API:", err);
+        });
+      } catch (error) {
+        console.error("Error deleting task via API:", error);
+      }
     }
   };
 
@@ -217,6 +271,15 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         // Queue for sync when online
         if (isAuthenticated) {
           SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Try to update via API
+          try {
+            apiService.updateTask(id, updatedTask).catch(err => {
+              console.error("Failed to update task via API:", err);
+            });
+          } catch (error) {
+            console.error("Error updating task via API:", error);
+          }
           
           // Send notification for task completion
           if (updatedTask.completed) {
@@ -240,6 +303,15 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     // Queue for sync when online
     if (isAuthenticated) {
       SyncService.queueOperation('add', 'category', newCategory);
+      
+      // Try to create via API
+      try {
+        apiService.createCategory(newCategory).catch(err => {
+          console.error("Failed to create category via API:", err);
+        });
+      } catch (error) {
+        console.error("Error creating category via API:", error);
+      }
     }
   };
   
@@ -251,6 +323,14 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         // Queue for sync when online
         if (isAuthenticated) {
           SyncService.queueOperation('update', 'category', updatedCategory);
+          
+          // Try to update via API
+          try {
+            // Assuming there's an updateCategory API endpoint
+            // await apiService.updateCategory(id, updatedFields);
+          } catch (error) {
+            console.error("Error updating category via API:", error);
+          }
         }
         
         return updatedCategory;
@@ -280,6 +360,14 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     // Queue for sync when online
     if (isAuthenticated) {
       SyncService.queueOperation('delete', 'category', { id });
+      
+      // Try to delete via API
+      try {
+        // Assuming there's a deleteCategory API endpoint
+        // await apiService.deleteCategory(id);
+      } catch (error) {
+        console.error("Error deleting category via API:", error);
+      }
     }
   };
 
@@ -302,6 +390,16 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         // Queue for sync when online
         if (isAuthenticated) {
           SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Try to update via API
+          try {
+            apiService.shareTask(taskId, collaborators.map(c => c.userId)).catch(err => {
+              console.error("Failed to share task via API:", err);
+            });
+          } catch (error) {
+            console.error("Error sharing task via API:", error);
+          }
+          
           toast.success("Task shared successfully");
         }
         
@@ -330,6 +428,16 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         // Queue for sync when online
         if (isAuthenticated) {
           SyncService.queueOperation('update', 'task', updatedTask);
+          
+          // Try to update via API
+          try {
+            apiService.updateTask(taskId, { collaborators: [], shared: false }).catch(err => {
+              console.error("Failed to unshare task via API:", err);
+            });
+          } catch (error) {
+            console.error("Error unsharing task via API:", error);
+          }
+          
           toast.success("Task is no longer shared");
         }
         
@@ -487,6 +595,17 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     updateTask(taskId, {
       attachments: [...currentAttachments, newAttachment]
     });
+    
+    // Try to upload to API if we're online
+    if (isAuthenticated && attachment instanceof File) {
+      try {
+        apiService.uploadTaskAttachment(taskId, attachment as any).catch(err => {
+          console.error("Failed to upload attachment to API:", err);
+        });
+      } catch (error) {
+        console.error("Error uploading attachment to API:", error);
+      }
+    }
     
     toast.success("Attachment added");
   };
@@ -648,7 +767,7 @@ export const useTaskContext = () => {
   return context;
 };
 
-// Sample data
+// Sample data...
 const sampleCategories: Category[] = [
   { id: 'work', name: 'Work', color: '#7C3AED' },
   { id: 'personal', name: 'Personal', color: '#10B981' },

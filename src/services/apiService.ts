@@ -1,6 +1,7 @@
 
 import { getAuthHeaders } from '../config/api';
 import { toast } from 'sonner';
+import { Task } from '@/types/task';
 
 /**
  * Base URL for API requests
@@ -41,39 +42,109 @@ export async function fetchFromApi<T>(
 }
 
 /**
- * Example API functions
+ * API functions for task management and other features
  */
 export const apiService = {
-  // Get user data
+  // User data
   getUserData: async () => {
     return fetchFromApi('/user');
   },
   
-  // Get data with pagination
-  getItems: async (page: number = 1, limit: number = 10) => {
-    return fetchFromApi(`/items?page=${page}&limit=${limit}`);
+  // Task management
+  getTasks: async () => {
+    return fetchFromApi<Task[]>('/tasks');
   },
   
-  // Create a new item
-  createItem: async (data: any) => {
-    return fetchFromApi('/items', {
+  getTask: async (id: string) => {
+    return fetchFromApi<Task>(`/tasks/${id}`);
+  },
+  
+  createTask: async (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+    return fetchFromApi<Task>('/tasks', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(task),
     });
   },
   
-  // Update an existing item
-  updateItem: async (id: string, data: any) => {
-    return fetchFromApi(`/items/${id}`, {
+  updateTask: async (id: string, task: Partial<Task>) => {
+    return fetchFromApi<Task>(`/tasks/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(task),
     });
   },
   
-  // Delete an item
-  deleteItem: async (id: string) => {
-    return fetchFromApi(`/items/${id}`, {
+  deleteTask: async (id: string) => {
+    return fetchFromApi(`/tasks/${id}`, {
       method: 'DELETE',
+    });
+  },
+  
+  // Categories
+  getCategories: async () => {
+    return fetchFromApi('/categories');
+  },
+  
+  createCategory: async (category: any) => {
+    return fetchFromApi('/categories', {
+      method: 'POST',
+      body: JSON.stringify(category),
+    });
+  },
+  
+  // Task sharing and collaboration
+  shareTask: async (taskId: string, users: string[]) => {
+    return fetchFromApi(`/tasks/${taskId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ users }),
+    });
+  },
+  
+  // Team management
+  getTeamMembers: async () => {
+    return fetchFromApi('/team/members');
+  },
+  
+  inviteTeamMember: async (email: string, role: string) => {
+    return fetchFromApi('/team/invite', {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    });
+  },
+  
+  // File uploads for tasks
+  uploadTaskAttachment: async (taskId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    return fetchFromApi(`/tasks/${taskId}/attachments`, {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let the browser set the correct Content-Type for FormData
+    });
+  },
+  
+  // Analytics data
+  getTaskAnalytics: async (period: 'day' | 'week' | 'month' | 'year' = 'month') => {
+    return fetchFromApi(`/analytics/tasks?period=${period}`);
+  },
+  
+  getProductivityMetrics: async () => {
+    return fetchFromApi('/analytics/productivity');
+  },
+  
+  getCompletionRateByCategory: async () => {
+    return fetchFromApi('/analytics/completion-rate');
+  },
+  
+  // User preferences
+  getUserPreferences: async () => {
+    return fetchFromApi('/user/preferences');
+  },
+  
+  updateUserPreferences: async (preferences: any) => {
+    return fetchFromApi('/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
     });
   },
 };

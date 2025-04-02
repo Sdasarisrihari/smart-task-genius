@@ -8,13 +8,48 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useApiKey } from '@/hooks/useApiKey';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, SettingsIcon, KeyIcon, Save, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, SettingsIcon, KeyIcon, Save, CheckCircle2, BellRing, PaintBucket, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
 
 const Settings = () => {
-  const { isConfigured, keyPreview } = useApiKey();
+  const { isConfigured, keyPreview, isValid } = useApiKey();
   const [activeTab, setActiveTab] = useState('api');
   const [tempApiKey, setTempApiKey] = useState('');
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('theme') === 'dark';
+  });
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    return localStorage.getItem('notificationsEnabled') === 'true';
+  });
+  const [emailNotifications, setEmailNotifications] = useState(() => {
+    return localStorage.getItem('emailNotifications') === 'true';
+  });
+
+  // Theme toggle handler
+  const handleThemeToggle = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    document.documentElement.classList.toggle('dark', newDarkMode);
+    toast.success(`Theme changed to ${newDarkMode ? 'dark' : 'light'} mode`);
+  };
+
+  // Notification toggle handler
+  const handleNotificationsToggle = () => {
+    const newValue = !notificationsEnabled;
+    setNotificationsEnabled(newValue);
+    localStorage.setItem('notificationsEnabled', newValue.toString());
+    toast.success(newValue ? 'Notifications enabled' : 'Notifications disabled');
+  };
+
+  // Email notification toggle handler
+  const handleEmailNotificationsToggle = () => {
+    const newValue = !emailNotifications;
+    setEmailNotifications(newValue);
+    localStorage.setItem('emailNotifications', newValue.toString());
+    toast.success(newValue ? 'Email notifications enabled' : 'Email notifications disabled');
+  };
 
   const handleSaveApiKey = () => {
     // In a real app, you would update the environment variable or store in a secure way
@@ -23,6 +58,11 @@ const Settings = () => {
       description: "To update your API key, modify the VITE_API_KEY value in your .env file and restart the app."
     });
   };
+
+  useEffect(() => {
+    // Apply theme on initial load
+    document.documentElement.classList.toggle('dark', darkMode);
+  }, []);
 
   return (
     <div className="container py-8">
@@ -40,8 +80,12 @@ const Settings = () => {
             API Configuration
           </TabsTrigger>
           <TabsTrigger value="appearance">
-            <SettingsIcon className="h-4 w-4 mr-2" />
+            <PaintBucket className="h-4 w-4 mr-2" />
             Appearance
+          </TabsTrigger>
+          <TabsTrigger value="notifications">
+            <BellRing className="h-4 w-4 mr-2" />
+            Notifications
           </TabsTrigger>
         </TabsList>
         
@@ -64,7 +108,7 @@ const Settings = () => {
                       readOnly 
                       className="font-mono" 
                     />
-                    <Badge variant={isConfigured ? "success" : "destructive"}>
+                    <Badge variant={isConfigured ? "outline" : "destructive"} className={isConfigured ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" : ""}>
                       {isConfigured ? "Configured" : "Not Configured"}
                     </Badge>
                   </div>
@@ -116,11 +160,58 @@ const Settings = () => {
                 Customize how the application looks and feels
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              {/* Appearance settings would go here */}
-              <p className="text-muted-foreground py-8 text-center">
-                Appearance settings to be implemented
-              </p>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium">Dark Mode</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Toggle between light and dark theme
+                  </p>
+                </div>
+                <Switch
+                  checked={darkMode}
+                  onCheckedChange={handleThemeToggle}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notification Preferences</CardTitle>
+              <CardDescription>
+                Control how and when you receive notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium">Enable Notifications</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Receive notifications for task deadlines and updates
+                  </p>
+                </div>
+                <Switch
+                  checked={notificationsEnabled}
+                  onCheckedChange={handleNotificationsToggle}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-medium">Email Notifications</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Receive notifications via email
+                  </p>
+                </div>
+                <Switch
+                  checked={emailNotifications}
+                  onCheckedChange={handleEmailNotificationsToggle}
+                  disabled={!notificationsEnabled}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

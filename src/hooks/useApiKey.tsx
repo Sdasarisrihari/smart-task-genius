@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { API_KEY, isApiKeyConfigured } from '../config/api';
 import { toast } from 'sonner';
+import { apiService } from '../services/apiService';
 
 /**
  * Hook to check and validate API key configuration
@@ -11,6 +12,26 @@ export const useApiKey = () => {
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isValid, setIsValid] = useState<boolean | null>(null);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+
+  const validateApiKey = async () => {
+    try {
+      setIsValidating(true);
+      // Attempt to make a basic API call to validate the key
+      await apiService.getUserData();
+      setIsValid(true);
+      toast.success("API key validated successfully");
+      return true;
+    } catch (error) {
+      console.error("API key validation failed:", error);
+      setIsValid(false);
+      toast.error("API key validation failed");
+      return false;
+    } finally {
+      setIsValidating(false);
+      setLastChecked(new Date());
+    }
+  };
 
   useEffect(() => {
     // Check if API key is available
@@ -23,19 +44,19 @@ export const useApiKey = () => {
       return;
     }
     
-    // Basic validation (just check it's not empty)
+    // Log successful configuration
     console.log("API key configured successfully");
     
-    // Optional - you could add an API key validation check here
-    // For now we'll assume it's valid if it exists
-    setIsValid(true);
-    
+    // Validate the API key on initial load
+    validateApiKey();
   }, []);
   
   return {
     isConfigured,
     isValidating,
     isValid,
+    lastChecked,
+    validateApiKey,
     // Only return the first few characters of the API key for verification purposes
     // Never expose the full API key in UI
     keyPreview: isConfigured ? `${API_KEY.substring(0, 8)}...` : 'Not configured'
