@@ -18,6 +18,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useApiKey } from '@/hooks/useApiKey';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -27,7 +29,7 @@ const formSchema = z.object({
 const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
-  const { isConfigured } = useApiKey();
+  const { isConfigured, isValidating, isValid } = useApiKey();
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -61,11 +63,21 @@ const Login = () => {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
-          {isConfigured && (
-            <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded">
-              API connection configured successfully
-            </div>
-          )}
+          
+          {/* API Connection Status */}
+          <div className="mt-2">
+            {isConfigured ? (
+              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded">
+                <CheckCircle2 className="h-4 w-4" />
+                <span>API connection configured successfully</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs rounded">
+                <AlertCircle className="h-4 w-4" />
+                <span>API connection not configured</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -97,7 +109,12 @@ const Login = () => {
                 )}
               />
               <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Logging in...' : 'Login'}
+                {form.formState.isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Logging in...
+                  </>
+                ) : 'Login'}
               </Button>
             </form>
           </Form>

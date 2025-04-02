@@ -85,7 +85,7 @@ export const AdvancedFilter = ({ onFilterChange }: AdvancedFilterProps) => {
   };
   
   const resetFilters = () => {
-    const defaultFilters = {
+    const defaultFilters: FilterOptions = {
       priority: 'all',
       category: 'all',
       completed: 'all',

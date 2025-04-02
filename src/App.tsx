@@ -10,6 +10,7 @@ import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Settings from "./pages/Settings";
 import { Header } from "./components/Header";
 import { TaskProvider } from "./contexts/TaskContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -97,6 +98,14 @@ const App = () => {
                       element={
                         <ProtectedRoute>
                           <UserProfile />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/settings" 
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
                         </ProtectedRoute>
                       } 
                     />
