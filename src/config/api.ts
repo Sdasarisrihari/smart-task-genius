@@ -6,9 +6,25 @@
 
 /**
  * The main API key for external service access
- * Loads from VITE_API_KEY environment variable
+ * Loads from environment variable or localStorage
  */
-export const API_KEY = import.meta.env.VITE_API_KEY || '';
+export const API_KEY = getApiKey();
+
+/**
+ * Get API key from localStorage or env
+ * Prioritizes localStorage for user-provided keys
+ */
+function getApiKey(): string {
+  // First try to use localStorage (user-provided key takes precedence)
+  const localApiKey = localStorage.getItem('VITE_API_KEY');
+  
+  // If not available, try to use the environment variable
+  if (!localApiKey) {
+    return import.meta.env.VITE_API_KEY || '';
+  }
+  
+  return localApiKey;
+}
 
 /**
  * Checks if the API key is configured
@@ -16,11 +32,7 @@ export const API_KEY = import.meta.env.VITE_API_KEY || '';
  */
 export const isApiKeyConfigured = (): boolean => {
   // Check both environment variable and localStorage (for browser persistence)
-  const envApiKey = import.meta.env.VITE_API_KEY;
-  const localApiKey = localStorage.getItem('VITE_API_KEY');
-  
-  // Return true if either source has an API key
-  return !!(envApiKey || localApiKey);
+  return !!getApiKey();
 };
 
 /**
@@ -28,13 +40,7 @@ export const isApiKeyConfigured = (): boolean => {
  * @returns {Record<string, string>} Headers object with authorization
  */
 export const getAuthHeaders = (): Record<string, string> => {
-  // First try to use the environment variable
-  let apiKey = import.meta.env.VITE_API_KEY;
-  
-  // If not available, try to use from localStorage
-  if (!apiKey) {
-    apiKey = localStorage.getItem('VITE_API_KEY') || '';
-  }
+  const apiKey = getApiKey();
   
   return {
     'Authorization': `Bearer ${apiKey}`,
@@ -49,4 +55,12 @@ export const getAuthHeaders = (): Record<string, string> => {
 export const storeApiKey = (key: string): void => {
   localStorage.setItem('VITE_API_KEY', key);
   console.log('API key stored in localStorage');
+};
+
+/**
+ * Clear stored API key from localStorage
+ */
+export const clearApiKey = (): void => {
+  localStorage.removeItem('VITE_API_KEY');
+  console.log('API key removed from localStorage');
 };

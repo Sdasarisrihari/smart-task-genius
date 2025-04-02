@@ -11,9 +11,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, SettingsIcon, KeyIcon, Save, CheckCircle2, BellRing, PaintBucket, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';
+import { storeApiKey, clearApiKey } from '@/config/api';
 
 const Settings = () => {
-  const { isConfigured, keyPreview, isValid } = useApiKey();
+  const { isConfigured, keyPreview, isValid, validateApiKey } = useApiKey();
   const [activeTab, setActiveTab] = useState('api');
   const [tempApiKey, setTempApiKey] = useState('');
   const [darkMode, setDarkMode] = useState(() => {
@@ -52,11 +53,30 @@ const Settings = () => {
   };
 
   const handleSaveApiKey = () => {
-    // In a real app, you would update the environment variable or store in a secure way
-    // Here we'll just show a toast to simulate the action
-    toast.success("API key instructions", {
-      description: "To update your API key, modify the VITE_API_KEY value in your .env file and restart the app."
+    if (!tempApiKey.trim()) {
+      toast.error("Please enter a valid API key");
+      return;
+    }
+    
+    // Store the API key in localStorage
+    storeApiKey(tempApiKey);
+    setTempApiKey('');
+    
+    // Validate the newly stored API key
+    validateApiKey().then((isValid) => {
+      if (isValid) {
+        toast.success("API key saved and validated successfully");
+      } else {
+        toast.error("API key saved but validation failed. Please check the key and try again.");
+      }
     });
+  };
+  
+  const handleClearApiKey = () => {
+    clearApiKey();
+    toast.success("API key removed");
+    // Refresh page to reflect changes
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -114,17 +134,18 @@ const Settings = () => {
                   </div>
                 </div>
                 
-                <Alert>
+                <Alert variant="warning">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Important</AlertTitle>
+                  <AlertTitle>Important Security Notice</AlertTitle>
                   <AlertDescription>
-                    API keys should be stored in environment variables for security. 
-                    In this demo, the key is stored in the <code>.env</code> file.
+                    For improved security, your API key is now stored in localStorage 
+                    rather than in the codebase. This prevents accidental exposure 
+                    when committing code to version control.
                   </AlertDescription>
                 </Alert>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="new-api-key">Set New API Key (Demo Only)</Label>
+                  <Label htmlFor="new-api-key">Set New API Key</Label>
                   <div className="flex gap-2">
                     <Input 
                       id="new-api-key" 
@@ -132,10 +153,14 @@ const Settings = () => {
                       onChange={(e) => setTempApiKey(e.target.value)}
                       className="font-mono"
                       placeholder="Enter new API key"
+                      type="password"
                     />
                     <Button onClick={handleSaveApiKey}>
                       <Save className="h-4 w-4 mr-2" />
                       Save
+                    </Button>
+                    <Button variant="destructive" onClick={handleClearApiKey}>
+                      Clear
                     </Button>
                   </div>
                 </div>
@@ -144,8 +169,8 @@ const Settings = () => {
             <CardFooter className="border-t px-6 py-4">
               <div className="text-xs text-muted-foreground">
                 <p>
-                  API keys are stored in environment variables for security. To update your API key, 
-                  modify the <code>VITE_API_KEY</code> value in your <code>.env</code> file and restart the app.
+                  API keys are now securely stored in your browser's localStorage. Be careful when using shared computers
+                  and remember to clear your browser data when needed for security.
                 </p>
               </div>
             </CardFooter>

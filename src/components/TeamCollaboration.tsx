@@ -22,19 +22,25 @@ export const TeamCollaboration = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [selectedRole, setSelectedRole] = useState('member');
 
+  // Fallback data if API fails or is loading
+  const fallbackMembers: TeamMember[] = [
+    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'owner', status: 'active' },
+    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', status: 'active' },
+    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'member', status: 'offline' }
+  ];
+
   // Fetch team members
-  const { data: teamMembers, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['teamMembers'],
-    queryFn: () => apiService.getTeamMembers(),
-    onError: (error) => {
-      console.error('Failed to fetch team members:', error);
-      // Provide fallback data if API fails
-      return [
-        { id: '1', name: 'John Doe', email: 'john@example.com', role: 'owner', status: 'active' },
-        { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', status: 'active' },
-        { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'member', status: 'offline' }
-      ] as TeamMember[];
-    }
+    queryFn: async () => {
+      try {
+        return await apiService.getTeamMembers();
+      } catch (error) {
+        console.error('Failed to fetch team members:', error);
+        return fallbackMembers; // Return fallback data on error
+      }
+    },
+    initialData: fallbackMembers
   });
 
   const handleInvite = async () => {
@@ -56,14 +62,7 @@ export const TeamCollaboration = () => {
     }
   };
 
-  // Fallback data if API fails or is loading
-  const fallbackMembers: TeamMember[] = [
-    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'owner', status: 'active' },
-    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', status: 'active' },
-    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'member', status: 'offline' }
-  ];
-
-  const displayMembers = teamMembers || fallbackMembers;
+  const displayMembers = data || fallbackMembers;
 
   return (
     <div className="space-y-6">
@@ -78,7 +77,7 @@ export const TeamCollaboration = () => {
               <p className="text-center py-4">Loading team members...</p>
             ) : (
               <div className="space-y-2">
-                {displayMembers.map((member) => (
+                {displayMembers.map((member: TeamMember) => (
                   <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Avatar>

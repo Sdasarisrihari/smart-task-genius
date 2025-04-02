@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from 'react';
-import { API_KEY, isApiKeyConfigured } from '../config/api';
+import { isApiKeyConfigured } from '../config/api';
 import { toast } from 'sonner';
 import { apiService } from '../services/apiService';
 
@@ -13,6 +13,7 @@ export const useApiKey = () => {
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [isValid, setIsValid] = useState<boolean | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [keyPreview, setKeyPreview] = useState<string>('Not configured');
 
   const validateApiKey = async () => {
     try {
@@ -40,8 +41,15 @@ export const useApiKey = () => {
     
     if (!apiKeyAvailable) {
       toast.error("API key not configured. Some features may not work properly.");
-      console.error("API key not found. Please add VITE_API_KEY to your environment variables.");
+      console.error("API key not found. Please add one in the Settings page.");
+      setKeyPreview('Not configured');
       return;
+    }
+    
+    // Display a masked preview of the API key
+    const key = localStorage.getItem('VITE_API_KEY') || import.meta.env.VITE_API_KEY;
+    if (key) {
+      setKeyPreview(`${key.substring(0, 8)}...${key.substring(key.length - 4)}`);
     }
     
     // Log successful configuration
@@ -57,8 +65,6 @@ export const useApiKey = () => {
     isValid,
     lastChecked,
     validateApiKey,
-    // Only return the first few characters of the API key for verification purposes
-    // Never expose the full API key in UI
-    keyPreview: isConfigured ? `${API_KEY.substring(0, 8)}...` : 'Not configured'
+    keyPreview,
   };
 };

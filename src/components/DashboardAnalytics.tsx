@@ -7,40 +7,64 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import {
-  Bar,
   BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Sector,
-  Tooltip,
+  Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
 } from 'recharts';
 import { apiService } from '@/services/apiService';
-import { useTaskContext } from '@/contexts/TaskContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
+import { useApiKey } from '@/hooks/useApiKey';
+import { Button } from '@/components/ui/button';
+import { SelectGroup, SelectItem } from '@/components/ui/select';
+import { COLORS, PRIORITY_COLORS } from '@/lib/utils';
+
+// Function to generate local task data
+const generateLocalTaskData = () => {
+  const overview = [
+    { name: 'Created', value: 200 },
+    { name: 'In Progress', value: 300 },
+    { name: 'Completed', value: 500 },
+  ];
+
+  const priority = [
+    { name: 'High', value: 400, color: PRIORITY_COLORS.high },
+    { name: 'Medium', value: 300, color: PRIORITY_COLORS.medium },
+    { name: 'Low', value: 200, color: PRIORITY_COLORS.low },
+  ];
+
+  const categories = [
+    { name: 'Work', value: 400, color: COLORS[0] },
+    { name: 'Personal', value: 300, color: COLORS[1] },
+    { name: 'Shopping', value: 200, color: COLORS[2] },
+  ];
+
+  return { overview, priority, categories };
+};
 
 export const DashboardAnalytics = () => {
-  const { tasks, categories } = useTaskContext();
-  const [activeTab, setActiveTab] = useState('overview');
-
-  // Fetch analytics data from API
+  const { isConfigured, isValid } = useApiKey();
+  const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
+  
+  // Enhanced queries with proper error handling in meta object
   const { data: taskAnalytics, isLoading: isLoadingTaskAnalytics } = useQuery({
-    queryKey: ['taskAnalytics'],
-    queryFn: () => apiService.getTaskAnalytics(),
+    queryKey: ['taskAnalytics', period],
+    queryFn: () => apiService.getTaskAnalytics(period),
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch task analytics:', error);
-        // Fall back to local data if API fails
       }
-    }
+    },
+    enabled: isConfigured && isValid === true
   });
 
   const { data: productivityMetrics, isLoading: isLoadingProductivity } = useQuery({
@@ -49,9 +73,9 @@ export const DashboardAnalytics = () => {
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch productivity metrics:', error);
-        // Fall back to local data if API fails
       }
-    }
+    },
+    enabled: isConfigured && isValid === true
   });
 
   const { data: completionRates, isLoading: isLoadingCompletionRates } = useQuery({
@@ -60,67 +84,20 @@ export const DashboardAnalytics = () => {
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch completion rates:', error);
-        // Fall back to local data if API fails
       }
-    }
+    },
+    enabled: isConfigured && isValid === true
   });
 
-  // Generate local fallback data if API fails
-  const generateLocalTaskData = () => {
-    // Completed vs. pending tasks
-    const completed = tasks.filter(task => task.completed).length;
-    const pending = tasks.length - completed;
-
-    // Tasks by priority
-    const highPriority = tasks.filter(task => task.priority === 'high').length;
-    const mediumPriority = tasks.filter(task => task.priority === 'medium').length;
-    const lowPriority = tasks.filter(task => task.priority === 'low').length;
-
-    // Tasks by category
-    const tasksByCategory = categories.map(category => {
-      const categoryTasks = tasks.filter(task => task.category === category.id);
-      const completedInCategory = categoryTasks.filter(task => task.completed).length;
-      
-      return {
-        name: category.name,
-        color: category.color,
-        total: categoryTasks.length,
-        completed: completedInCategory,
-        completion: categoryTasks.length > 0 
-          ? Math.round((completedInCategory / categoryTasks.length) * 100) 
-          : 0
-      };
-    });
-
-    return {
-      overview: [
-        { name: 'Completed', value: completed },
-        { name: 'Pending', value: pending }
-      ],
-      priority: [
-        { name: 'High', value: highPriority },
-        { name: 'Medium', value: mediumPriority },
-        { name: 'Low', value: lowPriority }
-      ],
-      categories: tasksByCategory
-    };
-  };
-
-  // Data for charts (use API data or fallback to local)
+  // Generate local data for when API is not available
   const localData = generateLocalTaskData();
+  
+  // Data for charts (use API data or fallback to local)
   const chartData = {
-    overview: taskAnalytics ? (taskAnalytics as any)?.overview || localData.overview : localData.overview,
-    priority: taskAnalytics ? (taskAnalytics as any)?.priority || localData.priority : localData.priority,
-    categories: completionRates || localData.categories,
-    productivity: productivityMetrics ? (productivityMetrics as any)?.timeSeriesData || [
-      { date: '2023-01-01', completed: 3, created: 5 },
-      { date: '2023-01-02', completed: 4, created: 2 },
-      { date: '2023-01-03', completed: 7, created: 6 },
-      { date: '2023-01-04', completed: 5, created: 4 },
-      { date: '2023-01-05', completed: 6, created: 3 },
-      { date: '2023-01-06', completed: 8, created: 5 },
-      { date: '2023-01-07', completed: 9, created: 4 }
-    ] : [
+    overview: taskAnalytics?.overview || localData.overview || [],
+    priority: taskAnalytics?.priority || localData.priority || [],
+    categories: completionRates || localData.categories || [],
+    productivity: productivityMetrics?.timeSeriesData || [
       { date: '2023-01-01', completed: 3, created: 5 },
       { date: '2023-01-02', completed: 4, created: 2 },
       { date: '2023-01-03', completed: 7, created: 6 },
@@ -131,130 +108,134 @@ export const DashboardAnalytics = () => {
     ]
   };
 
+  const isLoading = isLoadingTaskAnalytics || isLoadingProductivity || isLoadingCompletionRates;
+
   return (
-    <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="overview">Task Overview</TabsTrigger>
-          <TabsTrigger value="productivity">Productivity</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-        </TabsList>
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+      {/* Task Overview Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Task Overview</CardTitle>
+          <CardDescription>Distribution of tasks by status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartData.overview}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#8884d8" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tasks by Status</CardTitle>
-                <CardDescription>Completed vs pending tasks</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {isLoadingTaskAnalytics ? (
-                  <Skeleton className="w-full h-full" />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={chartData.overview}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {chartData.overview.map((entry, index) => (
-                          <Sector
-                            key={`cell-${index}`}
-                            fill={index === 0 ? '#10B981' : '#F59E0B'}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+      {/* Task Priority Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Task Priority</CardTitle>
+          <CardDescription>Distribution of tasks by priority</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  dataKey="value"
+                  isAnimationActive={false}
+                  data={chartData.priority}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  label
+                >
+                  {chartData.priority.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Tasks by Priority</CardTitle>
-                <CardDescription>Distribution across priority levels</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {isLoadingTaskAnalytics ? (
-                  <Skeleton className="w-full h-full" />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData.priority}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#3B82F6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
+      {/* Completion Rate by Category Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Completion Rate by Category</CardTitle>
+          <CardDescription>Task completion rate across different categories</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  dataKey="value"
+                  isAnimationActive={false}
+                  data={chartData.categories}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  label
+                >
+                  {chartData.categories.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Productivity Metrics Chart */}
+      <Card className="col-span-1 md:col-span-2 lg:col-span-3">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Productivity Metrics</CardTitle>
+            <SelectGroup>
+              <SelectItem value="day" onClick={() => setPeriod('day')}>Day</SelectItem>
+              <SelectItem value="week" onClick={() => setPeriod('week')}>Week</SelectItem>
+              <SelectItem value="month" onClick={() => setPeriod('month')}>Month</SelectItem>
+              <SelectItem value="year" onClick={() => setPeriod('year')}>Year</SelectItem>
+            </SelectGroup>
           </div>
-        </TabsContent>
-
-        <TabsContent value="productivity" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Productivity Trends</CardTitle>
-              <CardDescription>Tasks created vs completed over time</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              {isLoadingProductivity ? (
-                <Skeleton className="w-full h-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData.productivity}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="completed" stroke="#10B981" strokeWidth={2} />
-                    <Line type="monotone" dataKey="created" stroke="#3B82F6" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="categories" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Completion Rate by Category</CardTitle>
-              <CardDescription>Task completion percentage per category</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              {isLoadingCompletionRates ? (
-                <Skeleton className="w-full h-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData.categories}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="completion" name="Completion %" fill="#3B82F6" />
-                    <Bar dataKey="total" name="Total Tasks" fill="#F59E0B" />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <CardDescription>Tasks created vs. tasks completed over time</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-4">Loading...</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData.productivity}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="completed" stroke="#82ca9d" name="Completed" />
+                <Line type="monotone" dataKey="created" stroke="#8884d8" name="Created" />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
