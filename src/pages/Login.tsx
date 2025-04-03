@@ -18,8 +18,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { useApiKey } from '@/hooks/useApiKey';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Lock, User } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -29,7 +28,7 @@ const formSchema = z.object({
 const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated } = useAuth();
-  const { isConfigured, isValidating, isValid } = useApiKey();
+  const [showPassword, setShowPassword] = React.useState(false);
   
   // Redirect if already authenticated
   React.useEffect(() => {
@@ -63,21 +62,6 @@ const Login = () => {
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
-          
-          {/* API Connection Status */}
-          <div className="mt-2">
-            {isConfigured ? (
-              <div className="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs rounded">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>API connection configured successfully</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 text-xs rounded">
-                <AlertCircle className="h-4 w-4" />
-                <span>API connection not configured</span>
-              </div>
-            )}
-          </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -89,7 +73,14 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="your.email@example.com" {...field} />
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                        <Input 
+                          placeholder="your.email@example.com" 
+                          {...field} 
+                          className="pl-10"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -102,7 +93,22 @@ const Login = () => {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
+                        <Input 
+                          type={showPassword ? "text" : "password"} 
+                          placeholder="••••••••" 
+                          {...field} 
+                          className="pl-10 pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                        >
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -120,11 +126,16 @@ const Login = () => {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <div className="text-center text-sm">
-            <span className="text-muted-foreground">Don't have an account? </span>
-            <Link to="/signup" className="text-primary hover:text-primary/90 underline">
-              Sign up
+          <div className="flex justify-between w-full text-sm">
+            <Link to="/forgot-password" className="text-primary hover:text-primary/90 underline">
+              Forgot Password?
             </Link>
+            <div>
+              <span className="text-muted-foreground">Don't have an account? </span>
+              <Link to="/signup" className="text-primary hover:text-primary/90 underline">
+                Sign up
+              </Link>
+            </div>
           </div>
         </CardFooter>
       </Card>
@@ -133,3 +144,4 @@ const Login = () => {
 };
 
 export default Login;
+
