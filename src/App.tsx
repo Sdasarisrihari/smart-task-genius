@@ -19,6 +19,9 @@ import { UserProfile } from "./components/UserProfile";
 import React, { useEffect } from "react";
 import { registerServiceWorker } from "./services/notificationService";
 import { SharedTasks } from "./pages/SharedTasks";
+import { SyncService } from "./services/syncService";
+import { MobileOptimizer, MobileResponsiveHelper } from "./components/MobileResponsive";
+import { OfflineStatus } from "./components/OfflineStatus";
 
 // Configure the QueryClient with default options
 const queryClient = new QueryClient({
@@ -34,9 +37,13 @@ const queryClient = new QueryClient({
 const App = () => {
   // Register service worker for offline support and notifications
   useEffect(() => {
+    // Initialize service worker
     registerServiceWorker().then(success => {
       console.log(success ? "Service worker registered" : "Service worker registration failed");
     });
+    
+    // Initialize sync service for offline support
+    SyncService.init();
     
     // Apply theme from preferences
     const theme = localStorage.getItem('theme') || 'light';
@@ -54,6 +61,15 @@ const App = () => {
               <div className="min-h-screen flex flex-col bg-background">
                 <Header />
                 <main className="flex-1">
+                  {/* Mobile optimizations */}
+                  <MobileOptimizer />
+                  <MobileResponsiveHelper />
+                  
+                  {/* Offline status indicator */}
+                  <div className="container px-4">
+                    <OfflineStatus />
+                  </div>
+                  
                   <Routes>
                     {/* Public routes (don't require authentication) */}
                     <Route 

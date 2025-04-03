@@ -5,7 +5,7 @@ import { AlertTriangle } from 'lucide-react';
 
 export function SecurityAlert() {
   return (
-    <Alert variant="warning" className="mb-4">
+    <Alert className="mb-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Security Notice</AlertTitle>
       <AlertDescription>
