@@ -10,7 +10,6 @@ import { TeamCollaboration } from '@/components/TeamCollaboration';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
-import { SecurityAlert } from '@/components/SecurityAlert';
 import { useApiKey } from '@/hooks/useApiKey';
 
 const SharedTasks = () => {
@@ -22,9 +21,6 @@ const SharedTasks = () => {
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Team Collaboration</h1>
-      
-      {/* Display security alert only on this page */}
-      <SecurityAlert />
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">

@@ -1,8 +1,11 @@
 
 import { useEffect, useState } from 'react';
-import { isApiKeyConfigured } from '../config/api';
+import { isApiKeyConfigured, storeApiKey } from '../config/api';
 import { toast } from 'sonner';
 import { apiService } from '../services/apiService';
+
+// Default API key for demo purposes
+const DEFAULT_API_KEY = 'demo_api_key_12345';
 
 /**
  * Hook to check and validate API key configuration
@@ -36,15 +39,16 @@ export const useApiKey = () => {
 
   useEffect(() => {
     // Check if API key is available
-    const apiKeyAvailable = isApiKeyConfigured();
-    setIsConfigured(apiKeyAvailable);
+    let apiKeyAvailable = isApiKeyConfigured();
     
+    // If API key is not configured, set a default one for demo purposes
     if (!apiKeyAvailable) {
-      toast.error("API key not configured. Some features may not work properly.");
-      console.error("API key not found. Please add one in the Settings page.");
-      setKeyPreview('Not configured');
-      return;
+      console.log("Setting default API key for demo purposes");
+      storeApiKey(DEFAULT_API_KEY);
+      apiKeyAvailable = true;
     }
+    
+    setIsConfigured(apiKeyAvailable);
     
     // Display a masked preview of the API key
     const key = localStorage.getItem('VITE_API_KEY') || import.meta.env.VITE_API_KEY;
