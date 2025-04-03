@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +15,6 @@ const SharedTasks = () => {
   const { getSharedTasks, tasks } = useTaskContext();
   const sharedTasks = getSharedTasks();
   const [activeTab, setActiveTab] = useState('shared-tasks');
-  const { isValid } = useApiKey();
   
   return (
     <div className="container mx-auto py-10">
