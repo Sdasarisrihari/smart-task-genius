@@ -11,6 +11,8 @@ interface AuthContextType {
   signup: (email: string, password: string, displayName: string) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  socialLogin: (provider: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,6 +33,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginAttempts, setLoginAttempts] = useState<{[email: string]: number}>({});
 
   useEffect(() => {
     const checkAuth = () => {
@@ -57,6 +60,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const login = async (email: string, password: string) => {
     try {
       setLoading(true);
+      
+      // Enhanced security check - rate limit login attempts
+      const attempts = loginAttempts[email] || 0;
+      if (attempts >= 5) {
+        throw new Error('Too many login attempts. Please try again later.');
+      }
+      
       // In a real app, this would call an API
       // Simulating authentication for demo purposes
       if (email && password) {
@@ -64,8 +74,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const user = existingUsers.find((u: any) => u.email === email);
         
         if (!user || user.password !== password) {
+          // Track failed login attempts
+          setLoginAttempts(prev => ({
+            ...prev,
+            [email]: (prev[email] || 0) + 1
+          }));
+          
           throw new Error('Invalid email or password');
         }
+        
+        // Reset login attempts on successful login
+        setLoginAttempts(prev => ({
+          ...prev,
+          [email]: 0
+        }));
         
         const { password: _, ...userWithoutPassword } = user;
         const authenticatedUser = {
@@ -166,6 +188,79 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(false);
     }
   };
+  
+  const resetPassword = async (email: string) => {
+    try {
+      setLoading(true);
+      // In a real app, this would send an email with a reset link
+      // For demo purposes, we'll just update the password to a default
+      if (!email) throw new Error('Email is required');
+      
+      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      const userIndex = existingUsers.findIndex((u: any) => u.email === email);
+      
+      if (userIndex === -1) {
+        // In a real app, we wouldn't reveal that the user doesn't exist for security reasons
+        // But we'd still pretend the reset email was sent
+        console.log("User not found, but not revealing this to the caller");
+        return;
+      }
+      
+      // In a real app, we'd send an email with a reset link
+      console.log(`Password reset requested for ${email}`);
+      
+      // For demo purposes, we're simulating the reset by setting a new password
+      // This part would normally happen when the user clicks the reset link
+      existingUsers[userIndex].password = "newpassword123";
+      localStorage.setItem('users', JSON.stringify(existingUsers));
+    } catch (error: any) {
+      console.error("Error in resetPassword:", error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const socialLogin = async (provider: string) => {
+    try {
+      setLoading(true);
+      // In a real app, this would handle OAuth flow with the provider
+      console.log(`Logging in with ${provider}`);
+      
+      // For demo purposes, create/login a demo social user
+      const socialEmail = `demo-${provider.toLowerCase()}@example.com`;
+      const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+      let user = existingUsers.find((u: any) => u.email === socialEmail);
+      
+      if (!user) {
+        // Create a new user for this social login
+        user = {
+          id: crypto.randomUUID(),
+          email: socialEmail,
+          password: crypto.randomUUID(), // Random password that won't be used
+          displayName: `${provider} User`,
+          createdAt: new Date(),
+          socialProvider: provider
+        };
+        
+        existingUsers.push(user);
+        localStorage.setItem('users', JSON.stringify(existingUsers));
+      }
+      
+      const { password: _, ...userWithoutPassword } = user;
+      setCurrentUser({
+        ...userWithoutPassword,
+        createdAt: new Date(userWithoutPassword.createdAt)
+      });
+      setIsAuthenticated(true);
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+    } catch (error: any) {
+      console.error(`${provider} login error:`, error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const value = {
     currentUser,
@@ -174,7 +269,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     login,
     signup,
     logout,
-    updateProfile
+    updateProfile,
+    resetPassword,
+    socialLogin
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
