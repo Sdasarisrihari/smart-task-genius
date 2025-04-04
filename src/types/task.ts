@@ -20,6 +20,16 @@ export interface TaskAttachment {
   size: number;
 }
 
+export interface RecurrencePattern {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number; // e.g., every 2 weeks
+  endDate?: string; // ISO date string when recurrence ends
+  endAfterOccurrences?: number; // End after N occurrences
+  daysOfWeek?: number[]; // 0=Sunday, 1=Monday, etc.
+  dayOfMonth?: number; // for monthly recurrence
+  monthOfYear?: number; // for yearly recurrence
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -43,6 +53,9 @@ export interface Task {
     logs: TimeLogEntry[];
   };
   attachments?: TaskAttachment[];
+  recurrence?: RecurrencePattern; // New field for recurrence
+  isRecurring?: boolean; // Flag for if this is a recurring task
+  parentRecurringTaskId?: string; // If this is an occurrence of a recurring task
 }
 
 export interface TimeLogEntry {
@@ -55,4 +68,3 @@ export interface TimeLogEntry {
 }
 
 import { Collaborator } from './user';
-

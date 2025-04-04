@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Task, PriorityLevel, Category, TimeLogEntry, TaskAttachment } from '../types/task';
+import { Task, PriorityLevel, Category, TimeLogEntry, TaskAttachment, RecurrencePattern } from '../types/task';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { SyncService } from '../services/syncService';
@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { Collaborator } from '../types/user';
 import { apiService } from '@/services/apiService';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { TaskReminderService } from '@/services/taskReminderService';
 
 interface TaskContextType {
   tasks: Task[];
@@ -39,6 +40,8 @@ interface TaskContextType {
   importTasks: (jsonData: string) => void;
   getTasksByDateRange: (startDate: Date, endDate: Date) => Task[];
   suggestTaskPriorities: () => void;
+  setRecurrence: (taskId: string, recurrence: RecurrencePattern | undefined) => void;
+  generateRecurringTask: (taskId: string) => void;
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined);
@@ -55,9 +58,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     return savedTasks 
       ? JSON.parse(savedTasks).map((task: any) => ({
           ...task,
-          dueDate: task.dueDate ? new Date(task.dueDate) : null,
-          createdAt: new Date(task.createdAt),
-          updatedAt: new Date(task.updatedAt),
+          dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+          createdAt: new Date(task.createdAt).toISOString(),
+          updatedAt: new Date(task.updatedAt).toISOString(),
           timeTracking: task.timeTracking ? {
             ...task.timeTracking,
             logs: task.timeTracking.logs?.map((log: any) => ({
@@ -95,10 +98,37 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       tasks.forEach(task => {
         if (!task.completed && task.dueDate) {
           NotificationService.scheduleNotification(task);
+          
+          // Also schedule email reminders if user is available
+          if (currentUser?.email) {
+            TaskReminderService.scheduleReminders(task, currentUser.email);
+          }
         }
       });
     }
-  }, [tasks, isAuthenticated]);
+  }, [tasks, isAuthenticated, currentUser]);
+
+  // Check for recurring tasks that need to be created
+  useEffect(() => {
+    const checkRecurringTasks = () => {
+      const now = new Date();
+      const recurringTasks = tasks.filter(task => task.recurrence && !task.parentRecurringTaskId);
+      
+      recurringTasks.forEach(task => {
+        if (task.completed && !task.isRecurring) {
+          // Create next occurrence when a recurring task is completed
+          generateRecurringTask(task.id);
+        }
+      });
+    };
+    
+    checkRecurringTasks();
+    
+    // Set up interval to check for recurring tasks periodically
+    const intervalId = setInterval(checkRecurringTasks, 60 * 60 * 1000); // Every hour
+    
+    return () => clearInterval(intervalId);
+  }, [tasks]);
 
   // Optional API data sync - attempt to sync with API if configured
   useEffect(() => {
@@ -135,7 +165,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     
     // Due date factor
     if (task.dueDate) {
-      const daysUntilDue = Math.ceil((task.dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilDue = Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
       if (daysUntilDue < 0) score += 30; // Overdue
       else if (daysUntilDue < 1) score += 25; // Due today
       else if (daysUntilDue < 3) score += 20; // Due soon
@@ -152,6 +182,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       score += 15;
     }
     
+    // Recurrence factor - recurring tasks get a slight boost
+    if (task.recurrence) {
+      score += 8;
+    }
+    
     return Math.min(100, score);
   };
 
@@ -161,8 +196,8 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
     const newTask: Task = {
       ...task,
       id: uuidv4(),
-      createdAt: now,
-      updatedAt: now,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
       aiScore,
       userId: currentUser?.id // Associate task with current user
     };
@@ -185,6 +220,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       // Schedule notification if due date exists
       if (newTask.dueDate) {
         NotificationService.scheduleNotification(newTask);
+        
+        // Also schedule email reminders if user is available
+        if (currentUser?.email) {
+          TaskReminderService.scheduleReminders(newTask, currentUser.email);
+        }
       }
     }
     
@@ -194,7 +234,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   const updateTask = (id: string, updatedFields: Partial<Task>) => {
     setTasks(tasks.map(task => {
       if (task.id === id) {
-        const updatedTask = { ...task, ...updatedFields, updatedAt: new Date() };
+        const updatedTask = { ...task, ...updatedFields, updatedAt: new Date().toISOString() };
         
         // Recalculate AI score if relevant fields changed
         if ('priority' in updatedFields || 'dueDate' in updatedFields || 'description' in updatedFields || 'dependencies' in updatedFields) {
@@ -217,6 +257,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
           // Reschedule notification if due date changed
           if ('dueDate' in updatedFields && updatedTask.dueDate) {
             NotificationService.scheduleNotification(updatedTask);
+            
+            // Also reschedule email reminders if user is available
+            if (currentUser?.email) {
+              TaskReminderService.scheduleReminders(updatedTask, currentUser.email);
+            }
           }
         }
         
@@ -262,10 +307,12 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
   const completeTask = (id: string) => {
     setTasks(tasks.map(task => {
       if (task.id === id) {
+        const now = new Date();
         const updatedTask = { 
           ...task, 
           completed: !task.completed, 
-          updatedAt: new Date() 
+          completedAt: !task.completed ? now.toISOString() : undefined,
+          updatedAt: now.toISOString()
         };
         
         // Queue for sync when online
@@ -287,6 +334,11 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
               'Task Completed', 
               { body: `You've completed: ${task.title}` }
             );
+            
+            // If this is a recurring task, generate the next occurrence
+            if (updatedTask.recurrence) {
+              generateRecurringTask(id);
+            }
           }
         }
         
@@ -294,6 +346,34 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       }
       return task;
     }));
+  };
+
+  const setRecurrence = (taskId: string, recurrence: RecurrencePattern | undefined) => {
+    updateTask(taskId, { 
+      recurrence, 
+      isRecurring: !!recurrence 
+    });
+  };
+
+  const generateRecurringTask = (taskId: string) => {
+    const recurringTask = tasks.find(task => task.id === taskId);
+    if (!recurringTask || !recurringTask.recurrence) return;
+    
+    const nextOccurrence = TaskReminderService.generateNextOccurrence(recurringTask);
+    if (!nextOccurrence) return;
+    
+    // Add the next occurrence
+    const newTask = addTask({
+      ...nextOccurrence,
+      completedAt: undefined
+    });
+    
+    if (newTask) {
+      toast.info(
+        `Generated recurring task: ${newTask.title}`, 
+        { description: `Next occurrence scheduled for ${new Date(newTask.dueDate!).toLocaleDateString()}` }
+      );
+    }
   };
 
   const addCategory = (category: Omit<Category, 'id'>) => {
@@ -384,7 +464,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
           ...task,
           collaborators,
           shared: true,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         };
         
         // Queue for sync when online
@@ -422,7 +502,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
           ...task,
           collaborators: [],
           shared: false,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         };
         
         // Queue for sync when online
@@ -456,8 +536,8 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       id: uuidv4(),
       isTemplate: true,
       completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     
     setTasks([...tasks, templateTask]);
@@ -478,8 +558,8 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       id: uuidv4(),
       isTemplate: false,
       completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       userId: currentUser?.id,
     };
     
@@ -515,7 +595,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         const updatedTask = {
           ...task,
           dependencies: [...dependencies, dependsOnId],
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         };
         
         // Queue for sync when online
@@ -535,7 +615,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         const updatedTask = {
           ...task,
           dependencies: task.dependencies.filter(id => id !== dependsOnId),
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         };
         
         // Queue for sync when online
@@ -579,7 +659,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         actualMinutes: currentActualMinutes + log.durationMinutes,
         logs: [...currentLogs, newLog]
       },
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     };
     
     updateTask(taskId, updatedTask);
@@ -644,9 +724,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
         ...task,
         id: uuidv4(), // Generate new IDs
         userId: currentUser?.id,
-        createdAt: now,
-        updatedAt: now,
-        dueDate: task.dueDate ? new Date(task.dueDate) : null
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null
       }));
       
       // Add to existing tasks
@@ -712,7 +792,7 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       // Only update if different from current
       if (suggestedPriority !== task.priority) {
         toast.info(`AI suggested changing "${task.title}" priority to ${suggestedPriority}`);
-        return { ...task, priority: suggestedPriority, aiScore: newScore, updatedAt: new Date() };
+        return { ...task, priority: suggestedPriority, aiScore: newScore, updatedAt: new Date().toISOString() };
       }
       
       return { ...task, aiScore: newScore };
@@ -752,7 +832,9 @@ export const TaskProvider = ({ children }: TaskProviderProps) => {
       exportTasks,
       importTasks,
       getTasksByDateRange,
-      suggestTaskPriorities
+      suggestTaskPriorities,
+      setRecurrence,
+      generateRecurringTask
     }}>
       {children}
     </TaskContext.Provider>
@@ -787,48 +869,48 @@ const sampleTasks: Task[] = [
     id: '1',
     title: 'Complete project proposal',
     description: 'Finish the AI task manager proposal with all required sections and submit for review.',
-    dueDate: tomorrow,
+    dueDate: tomorrow.toISOString(),
     priority: 'high',
     completed: false,
     category: 'work',
     aiScore: 85,
-    createdAt: new Date(today.setHours(today.getHours() - 24)),
-    updatedAt: new Date()
+    createdAt: new Date(today.setHours(today.getHours() - 24)).toISOString(),
+    updatedAt: new Date().toISOString()
   },
   {
     id: '2',
     title: 'Morning run',
     description: '5K morning run around the park',
-    dueDate: today,
+    dueDate: today.toISOString(),
     priority: 'medium',
     completed: false,
     category: 'health',
     aiScore: 60,
-    createdAt: new Date(today.setHours(today.getHours() - 48)),
-    updatedAt: new Date(today.setHours(today.getHours() - 24))
+    createdAt: new Date(today.setHours(today.getHours() - 48)).toISOString(),
+    updatedAt: new Date(today.setHours(today.getHours() - 24)).toISOString()
   },
   {
     id: '3',
     title: 'Learn React Hooks',
     description: 'Study useContext and useReducer hooks',
-    dueDate: nextWeek,
+    dueDate: nextWeek.toISOString(),
     priority: 'low',
     completed: false,
     category: 'learning',
     aiScore: 35,
-    createdAt: new Date(today.setHours(today.getHours() - 72)),
-    updatedAt: new Date(today.setHours(today.getHours() - 48))
+    createdAt: new Date(today.setHours(today.getHours() - 72)).toISOString(),
+    updatedAt: new Date(today.setHours(today.getHours() - 48)).toISOString()
   },
   {
     id: '4',
     title: 'Grocery shopping',
     description: 'Buy vegetables, fruits, and other essentials',
-    dueDate: tomorrow,
+    dueDate: tomorrow.toISOString(),
     priority: 'medium',
     completed: false,
     category: 'personal',
     aiScore: 50,
-    createdAt: new Date(today.setHours(today.getHours() - 36)),
-    updatedAt: new Date(today.setHours(today.getHours() - 12))
+    createdAt: new Date(today.setHours(today.getHours() - 36)).toISOString(),
+    updatedAt: new Date(today.setHours(today.getHours() - 12)).toISOString()
   }
 ];

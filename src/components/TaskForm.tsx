@@ -1,500 +1,270 @@
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Task } from '../types/task';
-import { useTaskContext } from '../contexts/TaskContext';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Calendar } from './ui/calendar';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from './ui/popover';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
+} from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { CalendarIcon, Clock, Save, Timer } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTaskContext } from '../contexts/TaskContext';
+import { Task, PriorityLevel } from '@/types/task';
 import { cn } from '@/lib/utils';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from './ui/form';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Checkbox } from './ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { TimeTracker } from './TimeTracker';
-import { TaskDependencies } from './TaskDependencies';
-import { TaskAttachments } from './TaskAttachments';
-import { toast } from 'sonner';
-import { TaskComments } from './TaskComments';
-import { CalendarService, CalendarProvider } from '@/services/calendarService';
-
-// Extended schema to include new fields
-const taskSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
-  description: z.string().optional(),
-  dueDate: z.date().nullable(),
-  priority: z.enum(['low', 'medium', 'high']),
-  category: z.string().min(1, 'Category is required'),
-  estimatedMinutes: z.number().min(0).optional(),
-  saveAsTemplate: z.boolean().optional(),
-  addToCalendar: z.boolean().optional(),
-});
-
-type TaskFormValues = z.infer<typeof taskSchema>;
+import { RecurrenceSelector } from './RecurrenceSelector';
+import { VoiceTaskInput } from './VoiceTaskInput';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, MessageSquarePlus } from 'lucide-react';
 
 interface TaskFormProps {
-  task?: Task;
-  isOpen: boolean;
-  onClose: () => void;
-  templateId?: string;
-  isFromTemplate?: boolean;
+  initialTask?: Task;
+  onSave?: (task: Task) => void;
+  onCancel?: () => void;
+  onDelete?: () => void;
+  isEditing?: boolean;
 }
 
-export const TaskForm = ({ task, isOpen, onClose, templateId, isFromTemplate }: TaskFormProps) => {
-  const { 
-    addTask, 
-    updateTask, 
-    categories, 
-    saveTemplate,
-    getTaskDependencies,
-    getTaskTemplate
-  } = useTaskContext();
+const TaskForm = ({ initialTask, onSave, onCancel, onDelete, isEditing }: TaskFormProps) => {
+  const { addTask, updateTask, categories } = useTaskContext();
+  const [title, setTitle] = useState(initialTask?.title || '');
+  const [description, setDescription] = useState(initialTask?.description || '');
+  const [dueDate, setDueDate] = useState<Date | undefined>(
+    initialTask?.dueDate ? new Date(initialTask.dueDate) : undefined
+  );
+  const [category, setCategory] = useState(initialTask?.category || categories[0]?.id || '');
+  const [priority, setPriority] = useState<PriorityLevel>(initialTask?.priority || 'medium');
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [inputMethod, setInputMethod] = useState<'form' | 'voice'>('form');
+  const [recurrence, setRecurrence] = useState(initialTask?.recurrence);
   
-  const [activeTab, setActiveTab] = useState('details');
-  
-  // For new task form, default to 'details' tab, for existing tasks, we can show tabs
-  useEffect(() => {
-    setActiveTab('details');
-    
-    // If creating task from template, load template data
-    if (isFromTemplate && templateId) {
-      const template = getTaskTemplate(templateId);
-      if (template) {
-        // Get the original task the template is based on
-        const templateTask = getTaskByTemplateId(template.taskId);
-        if (templateTask) {
-          form.reset({
-            title: template.name || templateTask.title,
-            description: templateTask.description || '',
-            dueDate: null, // Don't copy due date from template
-            priority: templateTask.priority,
-            category: templateTask.category,
-            estimatedMinutes: templateTask.timeTracking?.estimatedMinutes || 0,
-            saveAsTemplate: false,
-            addToCalendar: false
-          });
-        }
-      }
-    }
-  }, [isOpen, isFromTemplate, templateId]);
-  
-  // Helper to get a task by ID for template loading
-  const getTaskByTemplateId = (taskId: string): Task | undefined => {
-    // This would normally query tasks from the context
-    // For demo purposes, we're just simulating
-    return {
-      id: taskId,
-      title: "Template Task",
-      description: "This is a task from a template",
-      category: categories[0]?.id || "",
-      priority: "medium",
-      completed: false
-    } as Task;
-  };
-  
-  // Calculate if dependencies are completed for existing task
-  const areDependenciesComplete = task ? getTaskDependencies(task.id).every(t => t.completed) : true;
-  
-  const defaultValues: TaskFormValues = {
-    title: task?.title || '',
-    description: task?.description || '',
-    dueDate: task?.dueDate ? new Date(task.dueDate) : null,
-    priority: task?.priority || 'medium',
-    category: task?.category || (categories.length > 0 ? categories[0].id : ''),
-    estimatedMinutes: task?.timeTracking?.estimatedMinutes || 0,
-    saveAsTemplate: false,
-    addToCalendar: false
-  };
-
-  const form = useForm<TaskFormValues>({
-    resolver: zodResolver(taskSchema),
-    defaultValues,
+  // Validation state
+  const [errors, setErrors] = useState({
+    title: false
   });
 
-  const onSubmit = async (values: TaskFormValues) => {
-    const { saveAsTemplate, addToCalendar, ...taskValues } = values;
-    
-    // Include time tracking info if estimated time is set
-    const timeTracking = values.estimatedMinutes ? {
-      estimatedMinutes: values.estimatedMinutes,
-      actualMinutes: task?.timeTracking?.actualMinutes || 0,
-      logs: task?.timeTracking?.logs || []
-    } : undefined;
-    
-    let savedTask: Task | undefined;
-    
-    if (task) {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Basic validation
+    if (!title.trim()) {
+      setErrors({ ...errors, title: true });
+      return;
+    }
+
+    // Create/update task object
+    const taskData: Partial<Task> = {
+      title,
+      description,
+      dueDate: dueDate ? dueDate.toISOString() : null,
+      category,
+      priority,
+      recurrence,
+      isRecurring: !!recurrence
+    };
+
+    if (isEditing && initialTask) {
       // Update existing task
-      updateTask(task.id, {
-        ...taskValues,
-        timeTracking
-      });
-      savedTask = { ...task, ...taskValues, timeTracking };
-      
-      if (saveAsTemplate) {
-        saveTemplate(task.id);
-      }
+      updateTask(initialTask.id, taskData);
+      if (onSave) onSave({ ...initialTask, ...taskData } as Task);
     } else {
       // Create new task
-      savedTask = addTask({
-        title: values.title,
-        description: values.description || '',
-        dueDate: values.dueDate,
-        priority: values.priority,
-        category: values.category,
-        completed: false,
-        timeTracking
-      });
-      
-      // Only attempt to save as template if newTask is returned and has an id
-      if (saveAsTemplate && savedTask && savedTask.id) {
-        saveTemplate(savedTask.id);
-      }
+      const newTask = addTask({
+        ...taskData,
+        completed: false
+      } as any);
+      if (onSave) onSave(newTask);
     }
-    
-    // Add to calendar if requested
-    if (addToCalendar && savedTask && savedTask.dueDate) {
-      const calendarProvider = localStorage.getItem('preferredCalendar') as CalendarProvider || CalendarProvider.GOOGLE;
-      
-      try {
-        const dueDate = new Date(savedTask.dueDate);
-        await CalendarService.addEvent({
-          title: savedTask.title,
-          description: savedTask.description,
-          startTime: dueDate,
-          endTime: new Date(dueDate.getTime() + 60 * 60 * 1000), // 1 hour duration
-        }, calendarProvider);
-        
-        toast.success('Task added to calendar');
-      } catch (error) {
-        console.error('Error adding to calendar:', error);
-        toast.error('Failed to add to calendar');
-      }
+
+    // Reset form if not editing
+    if (!isEditing) {
+      setTitle('');
+      setDescription('');
+      setDueDate(undefined);
+      setPriority('medium');
+      setCategory(categories[0]?.id || '');
+      setRecurrence(undefined);
     }
-    
-    onClose();
   };
-  
-  // Warn about dependencies if relevant
-  useEffect(() => {
-    if (task && !areDependenciesComplete) {
-      toast.warning("This task has unfinished dependencies", {
-        description: "You may want to complete them first"
-      });
-    }
-  }, [task, areDependenciesComplete]);
+
+  const handleVoiceTaskCreated = (taskData: Partial<Task>) => {
+    // Fill the form with the voice task data
+    setTitle(taskData.title || '');
+    setDescription(taskData.description || '');
+    setDueDate(taskData.dueDate ? new Date(taskData.dueDate) : undefined);
+    setPriority(taskData.priority || 'medium');
+    setCategory(taskData.category || categories[0]?.id || '');
+    
+    // Switch to form input to review before submitting
+    setInputMethod('form');
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isFromTemplate ? 'Create Task from Template' : (task ? 'Edit Task' : 'Add New Task')}
-          </DialogTitle>
-        </DialogHeader>
+    <Card className="w-full transition-all duration-200">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-xl">
+          {isEditing ? 'Edit Task' : 'Add New Task'}
+        </CardTitle>
+      </CardHeader>
+      
+      <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as 'form' | 'voice')}>
+        <TabsList className="mx-6">
+          <TabsTrigger value="form" className="flex-1">Form Input</TabsTrigger>
+          <TabsTrigger value="voice" className="flex-1">Voice Command</TabsTrigger>
+        </TabsList>
         
-        {task ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-4">
-              <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="time">Time</TabsTrigger>
-              <TabsTrigger value="dependencies">Dependencies</TabsTrigger>
-              <TabsTrigger value="comments">Comments</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="details" className="pt-4">
-              <TaskFormDetails 
-                form={form} 
-                onSubmit={onSubmit}
-                onClose={onClose}
-                isNew={false}
-              />
-            </TabsContent>
-            
-            <TabsContent value="time" className="pt-4">
-              <TimeTracker task={task} />
-              <div className="mt-4 flex justify-end">
-                <Button variant="outline" onClick={onClose}>Close</Button>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="dependencies" className="pt-4">
-              <TaskDependencies task={task} />
-              <div className="mt-6 flex justify-end">
-                <Button variant="outline" onClick={onClose}>Close</Button>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="comments" className="pt-4">
-              <TaskComments taskId={task.id} />
-              <div className="mt-4 flex justify-end">
-                <Button variant="outline" onClick={onClose}>Close</Button>
-              </div>
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <div className="pt-4">
-            <TaskFormDetails 
-              form={form} 
-              onSubmit={onSubmit}
-              onClose={onClose}
-              isNew={true}
-            />
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-// Extract the form fields to a separate component for clarity
-interface TaskFormDetailsProps {
-  form: any;
-  onSubmit: (values: TaskFormValues) => void;
-  onClose: () => void;
-  isNew: boolean;
-}
-
-const TaskFormDetails = ({ form, onSubmit, onClose, isNew }: TaskFormDetailsProps) => {
-  const { categories } = useTaskContext();
-  
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Task title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <TabsContent value="voice" className="p-6 pt-4">
+          <VoiceTaskInput onTaskCreated={handleVoiceTaskCreated} />
+        </TabsContent>
         
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Add details about this task"
-                  className="resize-none"
-                  {...field}
+        <TabsContent value="form">
+          <form onSubmit={handleSubmit}>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <Input
+                  placeholder="Task title"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    if (e.target.value.trim()) setErrors({ ...errors, title: false });
+                  }}
+                  className={cn(errors.title ? "border-red-500 focus-visible:ring-red-500" : "")}
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="dueDate"
-            render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Due Date</FormLabel>
+                {errors.title && (
+                  <p className="text-red-500 text-sm">Title is required</p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Select
+                    value={priority}
+                    onValueChange={(value) => setPriority(value as PriorityLevel)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low Priority</SelectItem>
+                      <SelectItem value="medium">Medium Priority</SelectItem>
+                      <SelectItem value="high">High Priority</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Select
+                    value={category}
+                    onValueChange={setCategory}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <div className="flex items-center">
+                            <div
+                              className="w-2 h-2 rounded-full mr-2"
+                              style={{ backgroundColor: cat.color }}
+                            ></div>
+                            {cat.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !dueDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dueDate ? format(dueDate, "PPP") : <span>Set due date</span>}
+                    </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
-                      selected={field.value || undefined}
-                      onSelect={field.onChange}
+                      selected={dueDate}
+                      onSelect={setDueDate}
                       initialFocus
-                      className="p-3 pointer-events-auto"
                     />
                   </PopoverContent>
                 </Popover>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="priority"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Priority</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Category</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        <div className="flex items-center">
-                          <div 
-                            className="h-3 w-3 rounded-full mr-2" 
-                            style={{ backgroundColor: category.color }} 
-                          />
-                          {category.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="estimatedMinutes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Estimated Time (minutes)</FormLabel>
-                <FormControl>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                    <Input 
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      {...field}
-                      value={field.value || ''}
-                      onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : 0)}
-                    />
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  Estimate how long this task will take
-                </FormDescription>
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="saveAsTemplate"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
+              </div>
+              
+              <RecurrenceSelector 
+                value={recurrence} 
+                onChange={setRecurrence} 
+              />
+              
+              <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" type="button" className="w-full justify-between">
+                    <span>
+                      {isExpanded ? 'Hide description' : 'Add description'}
+                    </span>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded ? "transform rotate-180" : "")} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Textarea
+                    placeholder="Task description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    className="mt-2"
                   />
-                </FormControl>
-                <div className="space-y-0.5">
-                  <FormLabel>Save as template</FormLabel>
-                  <FormDescription>
-                    Create a reusable template from this task
-                  </FormDescription>
-                </div>
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="addToCalendar"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center space-x-2 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                </FormControl>
-                <div className="space-y-0.5">
-                  <FormLabel>Add to calendar</FormLabel>
-                  <FormDescription>
-                    Add this task to your calendar when saved
-                  </FormDescription>
-                </div>
-              </FormItem>
-            )}
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-2 pt-2">
-          <Button variant="outline" onClick={onClose} type="button">
-            Cancel
-          </Button>
-          <Button type="submit">
-            {isNew ? 'Add Task' : 'Update Task'}
-          </Button>
-        </div>
-      </form>
-    </Form>
+                </CollapsibleContent>
+              </Collapsible>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <div>
+                {isEditing && onDelete && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={onDelete}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                {onCancel && (
+                  <Button type="button" variant="outline" onClick={onCancel}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit">
+                  {isEditing ? 'Update Task' : 'Add Task'}
+                </Button>
+              </div>
+            </CardFooter>
+          </form>
+        </TabsContent>
+      </Tabs>
+    </Card>
   );
 };
+
+export default TaskForm;
