@@ -125,8 +125,8 @@ const Calendar = () => {
                   }}
                   styles={{
                     day: (date) => {
-                      const dayClass = getDayClassNames(date);
-                      return dayClass ? { borderRadius: '9999px', ...dayClass } : {};
+                      const className = getDayClassNames(date);
+                      return className ? { borderRadius: '9999px', borderColor: className.split('-')[1] } : {};
                     }
                   }}
                   disabled={date => date < new Date(new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000)}

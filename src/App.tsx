@@ -22,6 +22,7 @@ import { SharedTasks } from "./pages/SharedTasks";
 import { SyncService } from "./services/syncService";
 import { MobileOptimizer, MobileResponsiveHelper } from "./components/MobileResponsive";
 import { OfflineStatus } from "./components/OfflineStatus";
+import ForgotPassword from "./pages/ForgotPassword";
 
 // Configure the QueryClient with default options
 const queryClient = new QueryClient({
@@ -74,19 +75,15 @@ const App = () => {
                     {/* Public routes (don't require authentication) */}
                     <Route 
                       path="/login" 
-                      element={
-                        <ProtectedRoute requiredAuth={false}>
-                          <Login />
-                        </ProtectedRoute>
-                      } 
+                      element={<Login />} 
                     />
                     <Route 
                       path="/signup" 
-                      element={
-                        <ProtectedRoute requiredAuth={false}>
-                          <Signup />
-                        </ProtectedRoute>
-                      } 
+                      element={<Signup />} 
+                    />
+                    <Route 
+                      path="/forgot-password" 
+                      element={<ForgotPassword />} 
                     />
 
                     {/* Protected routes (require authentication) */}
