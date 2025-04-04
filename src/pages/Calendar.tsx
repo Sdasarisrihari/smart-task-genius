@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task } from '../types/task';
@@ -10,12 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarProvider, calendarService } from '../services/calendarService';
+import { CalendarProvider, CalendarService } from '../services/calendarService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 
 const Calendar = () => {
-  const { tasks, createTask, updateTask } = useTaskContext();
+  const { tasks, updateTask } = useTaskContext();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedTab, setSelectedTab] = useState<'upcoming' | 'overdue' | 'completed'>('upcoming');
   const [exportFormat, setExportFormat] = useState<CalendarProvider>(CalendarProvider.GOOGLE);
@@ -53,16 +52,14 @@ const Calendar = () => {
         return;
       }
       
-      const result = await calendarService.exportCalendar(tasksWithDueDates, exportFormat);
+      const result = await CalendarService.exportTasksToCalendar(tasksWithDueDates, exportFormat);
       
-      if (result.success) {
+      if (result) {
         toast.success("Calendar exported successfully", {
           description: `Exported ${tasksWithDueDates.length} tasks to ${exportFormat}`
         });
       } else {
-        toast.error("Failed to export calendar", {
-          description: result.error
-        });
+        toast.error("Failed to export calendar");
       }
     } catch (error) {
       console.error("Error exporting calendar:", error);
@@ -311,7 +308,14 @@ const Calendar = () => {
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => updateTask({ ...task, completed: true, completedAt: new Date().toISOString() })}
+                            onClick={() => {
+                              const now = new Date();
+                              updateTask({ 
+                                ...task, 
+                                completed: true, 
+                                completedAt: now.toISOString() 
+                              });
+                            }}
                           >
                             Complete
                           </Button>
@@ -389,17 +393,8 @@ const Calendar = () => {
                 <Button className="w-full" onClick={() => {
                   // A real implementation would open a form or dialog
                   // This is just for demonstration
-                  const newTask: Partial<Task> = {
-                    id: crypto.randomUUID(),
-                    title: "New task",
-                    description: "",
-                    completed: false,
-                    dueDate: date?.toISOString(),
-                    createdAt: new Date().toISOString()
-                  };
-                  createTask(newTask as Task);
-                  toast.success("Task created", {
-                    description: `New task scheduled for ${format(date, 'MMM d, yyyy')}`
+                  toast.info("Task creation", {
+                    description: `To create a task for ${format(date, 'MMM d, yyyy')}, please use the Tasks page`
                   });
                 }}>
                   Add Task for This Date

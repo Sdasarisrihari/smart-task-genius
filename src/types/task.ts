@@ -24,13 +24,14 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  dueDate: Date | null;
+  dueDate: string | null;
   priority: PriorityLevel;
   completed: boolean;
+  completedAt?: string; // ISO date string when task was completed
   category: string;
   aiScore: number;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string;
+  updatedAt: string;
   userId?: string; // Owner of the task
   collaborators?: Collaborator[];
   shared?: boolean;
@@ -54,3 +55,4 @@ export interface TimeLogEntry {
 }
 
 import { Collaborator } from './user';
+
