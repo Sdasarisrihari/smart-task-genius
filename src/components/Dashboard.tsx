@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { TaskCard } from './TaskCard';
-import { TaskForm } from './TaskForm';
+import TaskForm from './TaskForm';  // Changed from { TaskForm } to TaskForm
 import { Task } from '../types/task';
 import { 
   PlusCircle, 
