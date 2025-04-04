@@ -12,15 +12,28 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useApiKey } from '@/hooks/useApiKey';
 import { EmailNotificationsList } from '@/components/EmailNotificationsList';
+import { InfoIcon } from 'lucide-react';
 
 const SharedTasks = () => {
   const { getSharedTasks, tasks } = useTaskContext();
   const sharedTasks = getSharedTasks();
-  const [activeTab, setActiveTab] = useState('shared-tasks');
+  const [activeTab, setActiveTab] = useState('team-members');
   
   return (
     <div className="container mx-auto py-10">
       <h1 className="text-3xl font-bold mb-6">Team Collaboration</h1>
+      
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6 flex gap-3">
+        <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
+        <div className="text-sm">
+          <p className="font-medium mb-1">Demo Application Notice</p>
+          <p>
+            This is a demonstration application that simulates sending emails. In a real-world scenario,
+            you would need to integrate with an email service provider (like Gmail) to send actual emails.
+            The invitation links would automatically register team members when clicked.
+          </p>
+        </div>
+      </div>
       
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">

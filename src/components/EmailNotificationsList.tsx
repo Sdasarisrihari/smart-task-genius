@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 
 interface SentEmail {
   to: string;
@@ -35,7 +36,7 @@ export const EmailNotificationsList = () => {
         <div className="flex justify-between items-center">
           <div>
             <CardTitle>Email Notifications</CardTitle>
-            <CardDescription>View sent email notifications (demo mode)</CardDescription>
+            <CardDescription>Email simulation for demonstration purposes</CardDescription>
           </div>
           <div className="flex gap-2">
             <Button
@@ -51,19 +52,30 @@ export const EmailNotificationsList = () => {
         </div>
       </CardHeader>
       <CardContent>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 rounded p-3 mb-4 flex items-start gap-2">
+          <AlertCircle className="text-amber-500 h-5 w-5 mt-0.5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-medium">Demo Mode: No Real Emails Are Sent</p>
+            <p className="text-muted-foreground mt-1">
+              This application simulates sending emails. In a production environment, 
+              you would integrate with an email service provider (like Gmail) to send actual emails to recipients.
+            </p>
+          </div>
+        </div>
+        
         {emailsEnabled ? (
           <div className="text-sm mb-4 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-900 rounded">
-            Email notifications are currently enabled (demo mode)
+            Email simulations are currently enabled
           </div>
         ) : (
           <div className="text-sm mb-4 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 rounded">
-            Email notifications are currently disabled
+            Email simulations are currently disabled
           </div>
         )}
         
         {sentEmails.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            No emails have been sent yet
+            No simulated emails have been sent yet
           </div>
         ) : (
           <div className="space-y-4">

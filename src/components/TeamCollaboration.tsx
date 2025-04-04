@@ -25,26 +25,10 @@ export const TeamCollaboration = () => {
   const [selectedRole, setSelectedRole] = useState('member');
   const [isInviting, setIsInviting] = useState(false);
 
-  // Fallback data if API fails or is loading
-  const fallbackMembers: TeamMember[] = [
-    { id: '1', name: 'John Doe', email: 'john@example.com', role: 'owner', status: 'active' },
-    { id: '2', name: 'Jane Smith', email: 'jane@example.com', role: 'admin', status: 'active' },
-    { id: '3', name: 'Mike Johnson', email: 'mike@example.com', role: 'member', status: 'offline' }
+  // Srihari as the team owner
+  const teamMembers: TeamMember[] = [
+    { id: '1', name: 'Srihari Dasari', email: 'srihari9dasari@gmail.com', role: 'owner', status: 'active' }
   ];
-
-  // Fetch team members
-  const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['teamMembers'],
-    queryFn: async () => {
-      try {
-        return await apiService.getTeamMembers();
-      } catch (error) {
-        console.error('Failed to fetch team members:', error);
-        return fallbackMembers; // Return fallback data on error
-      }
-    },
-    initialData: fallbackMembers
-  });
 
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !selectedRole) {
@@ -60,43 +44,23 @@ export const TeamCollaboration = () => {
     setIsInviting(true);
 
     try {
-      // Attempt to send invitation through API
-      await apiService.inviteTeamMember(inviteEmail, selectedRole);
-      
-      // Send email notification
-      const inviteSubject = 'Invitation to join the team';
-      const inviteBody = `
-        <h2>You've been invited to join the team</h2>
-        <p>You have been invited to join the team as a <strong>${selectedRole}</strong>.</p>
-        <p>Click the button below to accept the invitation:</p>
-        <a href="${window.location.origin}/accept-invite" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-top: 15px;">
-          Accept Invitation
-        </a>
-        <p style="margin-top: 20px;">If you didn't request this invitation, please ignore this email.</p>
-      `;
-      
-      const emailSent = await EmailService.sendEmail(inviteEmail, inviteSubject, inviteBody);
+      // Send email invitation
+      const emailSent = await EmailService.sendTeamInvitation(inviteEmail, selectedRole, 'Srihari Dasari');
       
       if (emailSent) {
         toast.success(`Invitation sent to ${inviteEmail}`, {
-          description: "An email notification has been sent"
+          description: "In a real application, they would receive an email with a link to accept"
         });
       } else {
-        toast.success(`Invitation created for ${inviteEmail}`, {
-          description: "Email notification could not be sent, but invitation was created"
+        toast.error(`Could not send invitation to ${inviteEmail}`, {
+          description: "Please check the email address and try again"
         });
       }
       
       setInviteEmail('');
-      refetch(); // Refresh the team members list
     } catch (error) {
       console.error('Failed to send invitation:', error);
-      
-      // For demo purposes, simulate success but show that email was attempted
-      toast.success(`Invitation created for ${inviteEmail}`, {
-        description: "Note: Email delivery may be delayed or unavailable in demo mode"
-      });
-      setInviteEmail('');
+      toast.error('Failed to send invitation');
     } finally {
       setIsInviting(false);
     }
@@ -105,8 +69,6 @@ export const TeamCollaboration = () => {
   const validateEmail = (email: string) => {
     return email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
   };
-
-  const displayMembers = data || fallbackMembers;
 
   return (
     <div className="space-y-6">
@@ -117,33 +79,29 @@ export const TeamCollaboration = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {isLoading ? (
-              <p className="text-center py-4">Loading team members...</p>
-            ) : (
-              <div className="space-y-2">
-                {Array.isArray(displayMembers) && displayMembers.map((member: TeamMember) => (
-                  <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={member.avatarUrl} />
-                        <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{member.name}</p>
-                        <p className="text-sm text-muted-foreground">{member.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={member.status === 'active' ? 'outline' : 'secondary'} 
-                             className={member.status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : ''}>
-                        {member.status}
-                      </Badge>
-                      <Badge>{member.role}</Badge>
+            <div className="space-y-2">
+              {teamMembers.map((member: TeamMember) => (
+                <div key={member.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarImage src={member.avatarUrl} />
+                      <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{member.name}</p>
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" 
+                           className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                      {member.status}
+                    </Badge>
+                    <Badge>{member.role}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
         <CardFooter className="flex-col items-stretch gap-4 border-t p-4">

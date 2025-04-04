@@ -27,7 +27,7 @@ export const EmailService = {
       
       // Attempt to call the email API service
       try {
-        // In a real implementation, this would call an API endpoint
+        // In a real implementation, this would connect to an email provider like Gmail
         // Since this is a demo, we'll simulate an API call
         await new Promise(resolve => setTimeout(resolve, 1000));
         
@@ -40,6 +40,11 @@ export const EmailService = {
           timestamp: new Date().toISOString()
         });
         localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+        
+        toast.info(`Email would be sent to ${recipient} in a real application`, {
+          description: "This is a demo application - to send real emails, you would need to integrate with an email service provider.",
+          duration: 5000
+        });
         
         return true;
       } catch (apiError) {
