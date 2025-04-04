@@ -1,6 +1,6 @@
-
 /**
- * Utility functions for handling two-factor authentication
+ * Security utility functions
+ * Note: 2FA functionality has been removed
  */
 
 /**
@@ -9,22 +9,6 @@
  */
 export function generateVerificationCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-/**
- * Send verification code via SMS
- * This would typically call an SMS API service
- */
-export async function sendVerificationSMS(phoneNumber: string, code: string): Promise<boolean> {
-  try {
-    console.log(`[SMS DEMO] Sending verification code ${code} to ${phoneNumber}`);
-    // In a real implementation, this would call an SMS API
-    // await smsService.send(phoneNumber, `Your verification code is: ${code}`);
-    return true;
-  } catch (error) {
-    console.error('Error sending SMS:', error);
-    return false;
-  }
 }
 
 /**
@@ -50,33 +34,59 @@ export function verifyCode(userCode: string, expectedCode: string): boolean {
 }
 
 /**
- * Store verification data in session storage
+ * Store session data in local storage
  */
-export function storeVerificationData(userId: string, code: string, expiresAt: number): void {
-  sessionStorage.setItem(`2fa_${userId}`, JSON.stringify({
-    code,
+export function storeSessionData(userId: string, expiresAt: number): void {
+  localStorage.setItem(`session_${userId}`, JSON.stringify({
     expiresAt
   }));
 }
 
 /**
- * Get verification data from session storage
+ * Get session data from local storage
  */
-export function getVerificationData(userId: string): { code: string; expiresAt: number } | null {
-  const data = sessionStorage.getItem(`2fa_${userId}`);
+export function getSessionData(userId: string): { expiresAt: number } | null {
+  const data = localStorage.getItem(`session_${userId}`);
   if (!data) return null;
   
   try {
     return JSON.parse(data);
   } catch (error) {
-    console.error('Error parsing verification data:', error);
+    console.error('Error parsing session data:', error);
     return null;
   }
 }
 
 /**
- * Clear verification data from session storage
+ * Clear session data from local storage
  */
-export function clearVerificationData(userId: string): void {
-  sessionStorage.removeItem(`2fa_${userId}`);
+export function clearSessionData(userId: string): void {
+  localStorage.removeItem(`session_${userId}`);
+}
+
+/**
+ * Check for suspicious login activity
+ */
+export function checkSuspiciousActivity(userId: string, ipAddress: string): boolean {
+  // In a real app, you would check against known IPs, locations, etc.
+  // For demo purposes, just returning false
+  return false;
+}
+
+/**
+ * Log login attempt
+ */
+export function logLoginAttempt(userId: string, success: boolean): void {
+  const attempts = JSON.parse(localStorage.getItem(`login_attempts_${userId}`) || '[]');
+  attempts.push({
+    timestamp: new Date().toISOString(),
+    success
+  });
+  
+  // Keep only last 10 attempts
+  if (attempts.length > 10) {
+    attempts.shift();
+  }
+  
+  localStorage.setItem(`login_attempts_${userId}`, JSON.stringify(attempts));
 }

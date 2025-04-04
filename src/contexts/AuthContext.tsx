@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '../types/user';
 import { toast } from 'sonner';
+import { logLoginAttempt } from '../utils/twoFactorAuth';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -45,6 +46,20 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           parsedUser.createdAt = new Date(parsedUser.createdAt);
           setCurrentUser(parsedUser);
           setIsAuthenticated(true);
+          
+          // Check session expiry
+          const sessionExpiry = localStorage.getItem('sessionExpiry');
+          if (sessionExpiry && new Date(sessionExpiry) < new Date()) {
+            // Session expired, log user out
+            logout();
+            toast.info("Your session has expired. Please login again.");
+            return;
+          }
+          
+          // Extend session expiry
+          const newExpiry = new Date();
+          newExpiry.setHours(newExpiry.getHours() + 24); // 24 hour session
+          localStorage.setItem('sessionExpiry', newExpiry.toISOString());
         }
       } catch (error) {
         console.error("Error retrieving user:", error);
@@ -80,6 +95,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             [email]: (prev[email] || 0) + 1
           }));
           
+          logLoginAttempt(email, false);
           throw new Error('Invalid email or password');
         }
         
@@ -95,15 +111,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           createdAt: new Date(userWithoutPassword.createdAt)
         };
         
+        // Set session expiry - 24 hours
+        const expiry = new Date();
+        expiry.setHours(expiry.getHours() + 24);
+        localStorage.setItem('sessionExpiry', expiry.toISOString());
+        
+        logLoginAttempt(email, true);
         setCurrentUser(authenticatedUser);
         setIsAuthenticated(true);
         localStorage.setItem('currentUser', JSON.stringify(authenticatedUser));
-        toast.success("Successfully logged in!");
       } else {
         throw new Error('Email and password are required');
       }
     } catch (error: any) {
-      toast.error(error.message || "Failed to log in");
       throw error;
     } finally {
       setLoading(false);
@@ -136,12 +156,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       localStorage.setItem('users', JSON.stringify(existingUsers));
       
       const { password: _, ...userWithoutPassword } = newUser;
+      
+      // Set session expiry - 24 hours
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + 24);
+      localStorage.setItem('sessionExpiry', expiry.toISOString());
+      
       setCurrentUser(userWithoutPassword);
       setIsAuthenticated(true);
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      toast.success("Account created successfully!");
     } catch (error: any) {
-      toast.error(error.message || "Failed to create account");
       throw error;
     } finally {
       setLoading(false);
@@ -153,11 +177,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       setLoading(true);
       // In a real app, this would call an API or clear tokens
       localStorage.removeItem('currentUser');
+      localStorage.removeItem('sessionExpiry');
       setCurrentUser(null);
       setIsAuthenticated(false);
-      toast.success("Successfully logged out");
     } catch (error: any) {
-      toast.error(error.message || "Failed to log out");
       throw error;
     } finally {
       setLoading(false);
@@ -180,9 +203,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       );
       
       localStorage.setItem('users', JSON.stringify(updatedUsers));
-      toast.success("Profile updated successfully");
     } catch (error: any) {
-      toast.error(error.message || "Failed to update profile");
       throw error;
     } finally {
       setLoading(false);
@@ -210,7 +231,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.log(`Password reset requested for ${email}`);
       
       // For demo purposes, we're simulating the reset by setting a new password
-      // This part would normally happen when the user clicks the reset link
       existingUsers[userIndex].password = "newpassword123";
       localStorage.setItem('users', JSON.stringify(existingUsers));
     } catch (error: any) {
@@ -246,6 +266,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         existingUsers.push(user);
         localStorage.setItem('users', JSON.stringify(existingUsers));
       }
+      
+      // Set session expiry - 24 hours
+      const expiry = new Date();
+      expiry.setHours(expiry.getHours() + 24);
+      localStorage.setItem('sessionExpiry', expiry.toISOString());
       
       const { password: _, ...userWithoutPassword } = user;
       setCurrentUser({

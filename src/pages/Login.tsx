@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -17,11 +17,13 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, Lock, User, Mail, Facebook, Twitter } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Lock, User, Mail, Facebook } from 'lucide-react';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { TwoFactorAuth } from '@/components/TwoFactorAuth';
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -31,24 +33,30 @@ const formSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated } = useAuth();
-  const [showPassword, setShowPassword] = React.useState(false);
-  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
-  const [showTwoFactor, setShowTwoFactor] = React.useState(false);
-  const [pendingUser, setPendingUser] = React.useState<{ email: string; rememberMe: boolean } | null>(null);
-  const [showResetPasswordDialog, setShowResetPasswordDialog] = React.useState(false);
-  const [resetEmail, setResetEmail] = React.useState('');
-  const [isResetting, setIsResetting] = React.useState(false);
+  const { login, isAuthenticated, socialLogin } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [lastLogin, setLastLogin] = useState<string | null>(null);
   
   // Redirect if already authenticated
-  React.useEffect(() => {
+  useEffect(() => {
     if (isAuthenticated) {
       navigate('/');
+    }
+    
+    // Get last login info
+    const lastLoginInfo = localStorage.getItem('lastLogin');
+    if (lastLoginInfo) {
+      setLastLogin(lastLoginInfo);
     }
   }, [isAuthenticated, navigate]);
   
   // Check for remembered credentials
-  React.useEffect(() => {
+  useEffect(() => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) {
       form.setValue('email', rememberedEmail);
@@ -76,24 +84,14 @@ const Login = () => {
         localStorage.removeItem('rememberedEmail');
       }
       
-      // Two-factor authentication check
-      // For demo purposes, we're showing 2FA for all users, but in real apps,
-      // you'd check if the user has 2FA enabled in their profile
-      const userRequiresTwoFactor = Math.random() > 0.5; // 50% chance for demo
+      // Regular login flow
+      await login(values.email, values.password);
       
-      if (userRequiresTwoFactor) {
-        // Store pending login info and show 2FA dialog
-        setPendingUser({ 
-          email: values.email,
-          rememberMe: values.rememberMe
-        });
-        setShowTwoFactor(true);
-      } else {
-        // Regular login flow
-        await login(values.email, values.password);
-        toast.success("Login successful!");
-        navigate('/');
-      }
+      // Record last login time
+      localStorage.setItem('lastLogin', new Date().toLocaleString());
+      
+      toast.success("Login successful!");
+      navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
       let errorMessage = "Login failed. Please check your credentials.";
@@ -117,17 +115,19 @@ const Login = () => {
   
   const handleSocialLogin = async (provider: string) => {
     try {
-      toast.info(`Logging in with ${provider}...`);
-      // In a real app, this would call an API or use OAuth
-      // For demo purposes we'll just delay and simulate login
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      setIsLoggingIn(true);
+      await socialLogin(provider);
       
-      // Simulated successful login
+      // Record last login time
+      localStorage.setItem('lastLogin', new Date().toLocaleString());
+      
       toast.success(`${provider} login successful!`);
       navigate('/');
     } catch (error) {
       console.error(`${provider} login error:`, error);
       toast.error(`${provider} login failed. Please try again.`);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
   
@@ -154,109 +154,135 @@ const Login = () => {
       setIsResetting(false);
     }
   };
-  
-  const handleTwoFactorComplete = async () => {
-    try {
-      if (pendingUser) {
-        // Complete the login process after 2FA verification
-        await login(pendingUser.email, ""); // In a real app, you'd use a token system here
-        toast.success("Login successful!");
-        setShowTwoFactor(false);
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Error completing login after 2FA:', error);
-      toast.error("Authentication failed. Please try again.");
-    }
-  };
 
   return (
     <div className="container max-w-md mx-auto py-10">
-      <Card>
+      <Card className="border-t-4 border-t-primary">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl flex items-center justify-between">
+            Login
+            {lastLogin && (
+              <Badge variant="outline" className="text-xs font-normal">
+                Last login: {lastLogin}
+              </Badge>
+            )}
+          </CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                        <Input 
-                          placeholder="your.email@example.com" 
-                          {...field} 
-                          className="pl-10"
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                        <Input 
-                          type={showPassword ? "text" : "password"} 
-                          placeholder="••••••••" 
-                          {...field} 
-                          className="pl-10 pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        >
-                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="rememberMe"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Remember me</FormLabel>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              
-              <Button type="submit" className="w-full" disabled={isLoggingIn}>
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Logging in...
-                  </>
-                ) : 'Login'}
-              </Button>
-            </form>
-          </Form>
+          <Tabs defaultValue="email" value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'phone')}>
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="email">Email</TabsTrigger>
+              <TabsTrigger value="phone">Phone</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="email">
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                            <Input 
+                              placeholder="your.email@example.com" 
+                              {...field} 
+                              className="pl-10"
+                              autoComplete="email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                            <Input 
+                              type={showPassword ? "text" : "password"} 
+                              placeholder="••••••••" 
+                              {...field} 
+                              className="pl-10 pr-10"
+                              autoComplete="current-password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                              tabIndex={-1}
+                            >
+                              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="rememberMe"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Remember me</FormLabel>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="w-full" disabled={isLoggingIn}>
+                    {isLoggingIn ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Logging in...
+                      </>
+                    ) : 'Login'}
+                  </Button>
+                </form>
+              </Form>
+            </TabsContent>
+            
+            <TabsContent value="phone">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <FormLabel>Phone Number</FormLabel>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                    <Input 
+                      placeholder="+1 (555) 123-4567" 
+                      className="pl-10"
+                      disabled
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Phone login coming soon in a future update.
+                  </p>
+                </div>
+                <Button disabled className="w-full">
+                  Continue with Phone
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
           
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
@@ -274,7 +300,8 @@ const Login = () => {
               variant="outline" 
               type="button" 
               onClick={() => handleSocialLogin('Google')}
-              className="w-full"
+              className={cn("w-full", isLoggingIn && "opacity-50 cursor-not-allowed")}
+              disabled={isLoggingIn}
             >
               <svg viewBox="0 0 24 24" className="mr-2 h-4 w-4">
                 <path
@@ -301,9 +328,10 @@ const Login = () => {
               variant="outline" 
               type="button"
               onClick={() => handleSocialLogin('Facebook')}
-              className="w-full"
+              className={cn("w-full", isLoggingIn && "opacity-50 cursor-not-allowed")}
+              disabled={isLoggingIn}
             >
-              <Facebook className="mr-2 h-4 w-4" />
+              <Facebook className="mr-2 h-4 w-4 text-blue-600" />
               Facebook
             </Button>
           </div>
@@ -371,16 +399,6 @@ const Login = () => {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Two-Factor Authentication Dialog */}
-      <Dialog open={showTwoFactor} onOpenChange={setShowTwoFactor}>
-        <DialogContent className="sm:max-w-[425px]">
-          <TwoFactorAuth 
-            onVerificationComplete={handleTwoFactorComplete}
-            onCancel={() => setShowTwoFactor(false)}
-          />
         </DialogContent>
       </Dialog>
     </div>

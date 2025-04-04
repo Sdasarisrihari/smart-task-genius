@@ -19,7 +19,7 @@ import { TaskTemplates } from '@/components/TaskTemplates';
 import { CalendarIntegration } from '@/components/CalendarIntegration';
 import { CalendarProvider } from '@/services/calendarService';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Shield } from 'lucide-react';
 
 export default function Settings() {
   const [apiKey, setApiKey] = useState('');
@@ -33,9 +33,6 @@ export default function Settings() {
   const [emailNotifications, setEmailNotifications] = useState(
     localStorage.getItem('emailNotifications') === 'true'
   );
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(
-    localStorage.getItem('twoFactorEnabled') === 'true'
-  );
   const [preferredCalendar, setPreferredCalendar] = useState<CalendarProvider>(
     (localStorage.getItem('preferredCalendar') as CalendarProvider) || CalendarProvider.GOOGLE
   );
@@ -46,6 +43,9 @@ export default function Settings() {
     localStorage.getItem('outlookCalendarIntegration') === 'true'
   );
   const [activeTab, setActiveTab] = useState('general');
+  const [advancedSecurity, setAdvancedSecurity] = useState(
+    localStorage.getItem('advancedSecurity') === 'true'
+  );
 
   const handleApiKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setApiKey(e.target.value);
@@ -109,18 +109,6 @@ export default function Settings() {
     localStorage.setItem('emailNotifications', checked ? 'true' : 'false');
     toast.success(checked ? 'Email notifications enabled' : 'Email notifications disabled');
   };
-
-  const handleTwoFactorToggle = (checked: boolean) => {
-    setTwoFactorEnabled(checked);
-    localStorage.setItem('twoFactorEnabled', checked ? 'true' : 'false');
-    toast.success(checked ? '2FA enabled' : '2FA disabled');
-    
-    if (checked) {
-      toast.info('Two-factor authentication configured', {
-        description: 'You will be asked to verify your identity on next login'
-      });
-    }
-  };
   
   const handleCalendarPreferenceChange = (value: string) => {
     setPreferredCalendar(value as CalendarProvider);
@@ -147,6 +135,17 @@ export default function Settings() {
       toast.success('Outlook Calendar integration enabled');
     } else {
       toast.info('Outlook Calendar integration disabled');
+    }
+  };
+  
+  const handleAdvancedSecurityToggle = (checked: boolean) => {
+    setAdvancedSecurity(checked);
+    localStorage.setItem('advancedSecurity', checked ? 'true' : 'false');
+    
+    if (checked) {
+      toast.success('Advanced security features enabled');
+    } else {
+      toast.info('Advanced security features disabled');
     }
   };
 
@@ -217,10 +216,10 @@ export default function Settings() {
           </Card>
           
           <Alert>
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Secure your account</AlertTitle>
+            <Shield className="h-4 w-4" />
+            <AlertTitle>Security recommendation</AlertTitle>
             <AlertDescription>
-              Enable two-factor authentication for better security
+              Enable advanced security for better protection
             </AlertDescription>
           </Alert>
         </div>
@@ -368,19 +367,19 @@ export default function Settings() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Two-Factor Authentication</h3>
+                  <h3 className="text-lg font-medium mb-2">Advanced Security</h3>
                   <div className="grid gap-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
-                        <Label htmlFor="twoFactor">Enable 2FA</Label>
+                        <Label htmlFor="advancedSecurity">Enable Advanced Security</Label>
                         <p className="text-sm text-muted-foreground">
-                          Require verification code when logging in
+                          Additional security features like suspicious activity detection
                         </p>
                       </div>
                       <Switch
-                        id="twoFactor"
-                        checked={twoFactorEnabled}
-                        onCheckedChange={handleTwoFactorToggle}
+                        id="advancedSecurity"
+                        checked={advancedSecurity}
+                        onCheckedChange={handleAdvancedSecurityToggle}
                       />
                     </div>
                   </div>
