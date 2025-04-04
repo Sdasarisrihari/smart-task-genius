@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { toast } from 'sonner';
 import { useApiKey } from '@/hooks/useApiKey';
+import { EmailNotificationsList } from '@/components/EmailNotificationsList';
 
 const SharedTasks = () => {
   const { getSharedTasks, tasks } = useTaskContext();
@@ -24,6 +26,7 @@ const SharedTasks = () => {
         <TabsList className="mb-4">
           <TabsTrigger value="shared-tasks">Shared Tasks</TabsTrigger>
           <TabsTrigger value="team-members">Team Members</TabsTrigger>
+          <TabsTrigger value="email-settings">Email Notifications</TabsTrigger>
         </TabsList>
         
         <TabsContent value="shared-tasks" className="space-y-4">
@@ -77,6 +80,10 @@ const SharedTasks = () => {
         <TabsContent value="team-members">
           <TeamCollaboration />
         </TabsContent>
+        
+        <TabsContent value="email-settings">
+          <EmailNotificationsList />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -124,7 +131,7 @@ const TaskCard = ({ task }) => {
                   {task.collaborators.slice(0, 3).map((collaborator, index) => (
                     <Avatar key={index} className="border-2 border-background h-6 w-6">
                       <AvatarFallback className="text-xs">
-                        {collaborator.name?.charAt(0) || 'U'}
+                        {collaborator.displayName?.charAt(0) || 'U'}
                       </AvatarFallback>
                     </Avatar>
                   ))}

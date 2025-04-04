@@ -1,4 +1,3 @@
-
 import React, {
   createContext,
   useState,
@@ -11,6 +10,7 @@ import { Task, PriorityLevel, Category } from '@/types/task';
 import { TaskTemplate } from '@/components/TaskTemplates';
 import { Collaborator } from '@/types/user';
 import { TaskAttachment } from '@/types/task';
+import { toast } from 'sonner';
 
 export interface TaskContextType {
   tasks: Task[];
@@ -32,8 +32,8 @@ export interface TaskContextType {
   deleteCategory: (id: string) => void;
   setCategories: (categories: Category[]) => void;
   addCollaborator: (collaborator: Collaborator) => void;
-  updateCollaborator: (id: string, updates: Partial<Collaborator>) => void;
-  deleteCollaborator: (id: string) => void;
+  updateCollaborator: (userId: string, updates: Partial<Collaborator>) => void;
+  deleteCollaborator: (userId: string) => void;
   collaborators: Collaborator[];
   addAttachment: (taskId: string, attachment: Omit<TaskAttachment, 'id'>) => void;
   removeAttachment: (taskId: string, attachmentId: string) => void;
@@ -162,22 +162,23 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
   };
 
   const addCollaborator = (collaborator: Collaborator) => {
-    if (!collaborator.id) {
-      collaborator.id = uuidv4();
+    // Check if userId exists, if not create one
+    if (!collaborator.userId) {
+      collaborator.userId = uuidv4();
     }
     setCollaborators([...collaborators, collaborator]);
   };
 
-  const updateCollaborator = (id: string, updates: Partial<Collaborator>) => {
+  const updateCollaborator = (userId: string, updates: Partial<Collaborator>) => {
     setCollaborators(
       collaborators.map((collaborator) =>
-        collaborator.id === id ? { ...collaborator, ...updates } : collaborator
+        collaborator.userId === userId ? { ...collaborator, ...updates } : collaborator
       )
     );
   };
 
-  const deleteCollaborator = (id: string) => {
-    setCollaborators(collaborators.filter((collaborator) => collaborator.id !== id));
+  const deleteCollaborator = (userId: string) => {
+    setCollaborators(collaborators.filter((collaborator) => collaborator.userId !== userId));
   };
 
   const createTaskFromTemplate = (templateId: string) => {
@@ -222,11 +223,12 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       id: uuidv4(),
       taskId: taskId,
       name: `Template: ${task.title}`,
-      description: task.description,
+      description: task.description || '',
       createdAt: new Date().toISOString()
     };
     
     setTemplates(prev => [...prev, newTemplate]);
+    toast.success("Template saved successfully");
   };
 
   const addAttachment = (taskId: string, attachment: Omit<TaskAttachment, 'id'>) => {
@@ -261,9 +263,22 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
   const shareTask = (taskId: string, collaboratorIds: string[]) => {
     setTasks(tasks.map(task => {
       if (task.id === taskId) {
-        const taskCollaborators = collaboratorIds.map(id => 
-          collaborators.find(c => c.id === id)
-        ).filter(Boolean) as Collaborator[];
+        // Get collaborator details from userId
+        const taskCollaborators = collaboratorIds.map(userId => {
+          // Find existing collaborator or create a new one with basic info
+          const existingCollaborator = collaborators.find(c => c.userId === userId);
+          if (existingCollaborator) {
+            return existingCollaborator;
+          } else {
+            // Create a basic collaborator if not found
+            const newCollaborator: Collaborator = {
+              userId,
+              displayName: userId.includes('@') ? userId.split('@')[0] : userId,
+              role: 'viewer'
+            };
+            return newCollaborator;
+          }
+        });
         
         return {
           ...task,
@@ -273,6 +288,8 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       }
       return task;
     }));
+    
+    toast.success("Task shared successfully");
   };
   
   const unshareTask = (taskId: string) => {
@@ -286,6 +303,8 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       }
       return task;
     }));
+    
+    toast.info("Task is no longer shared");
   };
   
   const getSharedTasks = () => {
@@ -308,8 +327,10 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       if (data.categories) setCategories(data.categories);
       if (data.collaborators) setCollaborators(data.collaborators);
       if (data.templates) setTemplates(data.templates);
+      toast.success("Data imported successfully");
     } catch (error) {
       console.error('Error importing tasks:', error);
+      toast.error("Invalid JSON data");
       throw new Error('Invalid JSON data');
     }
   };

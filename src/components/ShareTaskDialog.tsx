@@ -9,6 +9,8 @@ import { Task } from "@/types/task";
 import { useTaskContext } from "@/contexts/TaskContext";
 import { Collaborator } from "@/types/user";
 import { toast } from "sonner";
+import { EmailService } from '@/services/emailService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ShareTaskDialogProps {
   task: Task;
@@ -18,11 +20,13 @@ interface ShareTaskDialogProps {
 
 export const ShareTaskDialog = ({ task, isOpen, onClose }: ShareTaskDialogProps) => {
   const { shareTask, unshareTask } = useTaskContext();
+  const { currentUser } = useAuth();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"viewer" | "editor">("viewer");
   const [collaborators, setCollaborators] = useState<Collaborator[]>(task.collaborators || []);
+  const [isSending, setIsSending] = useState(false);
   
-  const handleAddCollaborator = () => {
+  const handleAddCollaborator = async () => {
     if (!email.trim()) {
       toast.error("Please enter an email address");
       return;
@@ -45,9 +49,48 @@ export const ShareTaskDialog = ({ task, isOpen, onClose }: ShareTaskDialogProps)
       role
     };
     
-    setCollaborators([...collaborators, newCollaborator]);
-    setEmail("");
-    toast.success("Collaborator added");
+    setIsSending(true);
+    
+    try {
+      // Send invite email
+      const taskLink = `${window.location.origin}/tasks/${task.id}`;
+      const inviterName = currentUser?.displayName || "A team member";
+      
+      const emailBody = `
+        <h2>Task Shared With You</h2>
+        <p>${inviterName} has shared a task with you:</p>
+        <p><strong>${task.title}</strong></p>
+        <p>${task.description || ''}</p>
+        <p>You have been given <strong>${role}</strong> access to this task.</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${taskLink}" 
+             style="background-color: #3b82f6; color: white; padding: 10px 20px; 
+                    text-decoration: none; border-radius: 4px; font-weight: bold;">
+            View Task
+          </a>
+        </div>
+      `;
+      
+      await EmailService.sendEmail(
+        email,
+        `Task Shared: ${task.title}`,
+        emailBody
+      );
+      
+      setCollaborators([...collaborators, newCollaborator]);
+      setEmail("");
+      toast.success("Collaborator added and notification sent");
+    } catch (error) {
+      console.error("Error sending invitation:", error);
+      // Add collaborator even if email fails
+      setCollaborators([...collaborators, newCollaborator]);
+      setEmail("");
+      toast.success("Collaborator added", { 
+        description: "Email notification may not have been sent"
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
   
   const handleRemoveCollaborator = (userId: string) => {
@@ -57,8 +100,12 @@ export const ShareTaskDialog = ({ task, isOpen, onClose }: ShareTaskDialogProps)
   const handleSave = () => {
     if (collaborators.length === 0) {
       unshareTask(task.id);
+      toast.info("Task is no longer shared");
     } else {
-      shareTask(task.id, collaborators);
+      // Convert collaborators array to array of strings (user IDs) for the shareTask function
+      const collaboratorIds = collaborators.map(c => c.userId);
+      shareTask(task.id, collaboratorIds);
+      toast.success(`Task shared with ${collaborators.length} people`);
     }
     onClose();
   };
@@ -103,8 +150,12 @@ export const ShareTaskDialog = ({ task, isOpen, onClose }: ShareTaskDialogProps)
             </RadioGroup>
           </div>
           <div className="flex justify-end">
-            <Button variant="secondary" onClick={handleAddCollaborator}>
-              Add
+            <Button 
+              variant="secondary" 
+              onClick={handleAddCollaborator}
+              disabled={isSending}
+            >
+              {isSending ? "Adding..." : "Add"}
             </Button>
           </div>
           

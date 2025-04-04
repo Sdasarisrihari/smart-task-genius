@@ -13,27 +13,81 @@ export const EmailService = {
   async sendEmail(recipient: string, subject: string, body: string): Promise<boolean> {
     try {
       // Check if email notifications are enabled in user preferences
-      const emailNotificationsEnabled = localStorage.getItem('emailNotifications') === 'true';
-      if (!emailNotificationsEnabled) {
-        console.log('Email notifications are disabled in user preferences');
-        return false;
-      }
-
-      // For demonstration purposes, we'll just log the email
-      // In a real app, this would call an API endpoint
+      const emailNotificationsEnabled = localStorage.getItem('emailNotifications') !== 'false';
+      
+      // For demonstration purposes, we'll log the email details
       console.log(`[EMAIL SERVICE] Sending email to: ${recipient}`);
       console.log(`Subject: ${subject}`);
       console.log(`Body: ${body}`);
       
-      // Mock API call to email service
-      // In a real implementation, this would be apiService.sendEmail()
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!emailNotificationsEnabled) {
+        console.log('Email notifications are disabled in user preferences');
+        return false;
+      }
       
-      return true;
+      // Attempt to call the email API service
+      try {
+        // In a real implementation, this would call an API endpoint
+        // Since this is a demo, we'll simulate an API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Store sent email in local storage for demo purposes
+        const sentEmails = JSON.parse(localStorage.getItem('sentEmails') || '[]');
+        sentEmails.push({
+          to: recipient,
+          subject,
+          body,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem('sentEmails', JSON.stringify(sentEmails));
+        
+        return true;
+      } catch (apiError) {
+        console.error('Email API error:', apiError);
+        return false;
+      }
     } catch (error) {
       console.error('Failed to send email notification:', error);
       return false;
     }
+  },
+
+  /**
+   * Send a team invitation email
+   * @param userEmail - Email address of the invitee
+   * @param role - Role being offered (admin, member, etc)
+   * @param inviterName - Name of the person sending the invitation
+   */
+  async sendTeamInvitation(userEmail: string, role: string, inviterName: string = 'A team admin'): Promise<boolean> {
+    const subject = 'You\'ve been invited to join a team on Smart Task Genius';
+    
+    const body = `
+      <h2>Team Invitation</h2>
+      <p>${inviterName} has invited you to join their team as a <strong>${role}</strong>.</p>
+      <p>Click the button below to accept this invitation:</p>
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="${window.location.origin}/accept-invite" 
+           style="background-color: #3b82f6; color: white; padding: 10px 20px; 
+                  text-decoration: none; border-radius: 4px; font-weight: bold;">
+          Accept Invitation
+        </a>
+      </div>
+      <p>Or copy and paste this URL into your browser:</p>
+      <p>${window.location.origin}/accept-invite</p>
+      <p style="color: #666; margin-top: 20px; font-size: 0.9em;">
+        If you didn't expect this invitation, you can safely ignore this email.
+      </p>
+    `;
+    
+    const sent = await this.sendEmail(userEmail, subject, body);
+    
+    if (sent) {
+      console.log(`Team invitation email sent to ${userEmail}`);
+    } else {
+      console.warn(`Failed to send team invitation email to ${userEmail}`);
+    }
+    
+    return sent;
   },
 
   /**
