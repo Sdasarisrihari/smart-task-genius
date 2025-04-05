@@ -1,8 +1,8 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface SentEmail {
   to: string;
@@ -13,22 +13,33 @@ interface SentEmail {
 
 export const EmailNotificationsList = () => {
   const [sentEmails, setSentEmails] = useState<SentEmail[]>(() => {
-    return JSON.parse(localStorage.getItem('sentEmails') || '[]');
+    try {
+      const savedEmails = localStorage.getItem('sentEmails');
+      return savedEmails ? JSON.parse(savedEmails) : [];
+    } catch (error) {
+      console.error('Error parsing stored emails:', error);
+      return [];
+    }
   });
+  
+  const [emailsEnabled, setEmailsEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('emailNotifications') !== 'false';
+  });
+  
+  // Keep localStorage in sync with state
+  useEffect(() => {
+    localStorage.setItem('emailNotifications', emailsEnabled.toString());
+  }, [emailsEnabled]);
   
   const clearEmails = () => {
     localStorage.removeItem('sentEmails');
     setSentEmails([]);
+    toast.success('Email history cleared');
   };
   
   const toggleEmailNotifications = () => {
-    const currentSetting = localStorage.getItem('emailNotifications') !== 'false';
-    localStorage.setItem('emailNotifications', (!currentSetting).toString());
-    // Force refresh to update UI
-    setSentEmails([...sentEmails]);
+    setEmailsEnabled(prevState => !prevState);
   };
-  
-  const emailsEnabled = localStorage.getItem('emailNotifications') !== 'false';
   
   return (
     <Card>

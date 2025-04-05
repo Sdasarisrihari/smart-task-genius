@@ -45,14 +45,17 @@ const useFormField = () => {
   const itemContext = React.useContext(FormItemContext)
   const formContext = useFormContext()
 
+  // Check if we're within a form context first
   if (!formContext) {
     throw new Error("useFormField must be used within a FormProvider")
   }
 
+  // Then check if we're within a field context
   if (!fieldContext) {
     throw new Error("useFormField should be used within <FormField>")
   }
 
+  // Now we can safely destructure
   const { getFieldState, formState } = formContext
   const fieldState = getFieldState(fieldContext.name, formState)
 

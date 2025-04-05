@@ -3,7 +3,6 @@
 
 **Smart Task Genius** is a modern, AI-powered task management application built with React, TypeScript, and Tailwind CSS. This feature-rich task manager combines cutting-edge web technologies with AI recommendations to help users stay organized, boost productivity, and manage tasks efficiently.
 
-
 ## 🌟 Key Features
 
 ### Core Task Management
@@ -85,7 +84,6 @@
    yarn dev
    ```
 
-
 ## 💡 Usage Guide
 
 ### Creating Tasks
@@ -116,6 +114,10 @@
 - Track completion rates over time
 - Analyze time spent on different categories of tasks
 
+## 👨‍💻 Contributors
+
+- [Srihari Dasari](https://github.com/Sdasarisrihari) - Project Creator
+
 ## 🔮 Future Enhancements
 
 - **Cloud Sync**: Synchronize tasks across devices with cloud storage
@@ -135,4 +137,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+## 📝 License
 
+This project is licensed under the MIT License - see the LICENSE file for details.
