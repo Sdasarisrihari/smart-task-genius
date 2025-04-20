@@ -56,7 +56,7 @@ const Calendar = () => {
         return upcomingTasks;
     }
   };
-  
+    
   // Calendar dates with tasks
   const datesWithTasks = tasks
     .filter(task => task.dueDate)
@@ -131,17 +131,15 @@ const Calendar = () => {
               }}
               disabled={{ before: new Date(2000, 0, 1) }}
               defaultMonth={date}
-              styles={{
-                // Remove invalid day_today property
-              }}
               classNames={{
                 day_disabled: 'text-gray-300 dark:text-gray-600',
               }}
               components={{
-                DayContent: ({ date, view }) => (
+                DayContent: ({ date }) => (
                   <div className={cn(
                     'relative flex h-8 w-8 items-center justify-center',
-                    datesWithTasks.some(taskDate => isSameDay(taskDate, date)) && !date.getTime() === (selected?.getTime() ?? 0)
+                    datesWithTasks.some(taskDate => isSameDay(taskDate, date)) && 
+                      date.getTime() !== (date?.getTime() ?? 0)
                       ? 'bg-blue-100 dark:bg-blue-900/40 rounded-full'
                       : '',
                     recurrenceCssClasses(date)
