@@ -53,6 +53,11 @@ const ForgotPassword = () => {
     }
   };
 
+  const resetForm = () => {
+    form.reset();
+    setIsSubmitted(false);
+  };
+
   return (
     <div className="container max-w-md mx-auto py-10">
       <Card>
@@ -109,7 +114,7 @@ const ForgotPassword = () => {
               <Button 
                 variant="outline" 
                 className="mt-2" 
-                onClick={() => form.reset() || setIsSubmitted(false)}
+                onClick={resetForm}
               >
                 Try another email
               </Button>

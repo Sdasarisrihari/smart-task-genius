@@ -1,10 +1,30 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Task, PriorityLevel } from '@/types/task';
+
+// Define the SpeechRecognition types
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
+
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionErrorEvent) => void;
+  onend: () => void;
+}
 
 interface VoiceTaskInputProps {
   onTaskCreated: (task: Partial<Task>) => void;
@@ -16,52 +36,57 @@ export function VoiceTaskInput({ onTaskCreated }: VoiceTaskInputProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const { categories } = useTaskContext();
   
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   
   useEffect(() => {
     // Check if browser supports speech recognition
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    const hasSpeechRecognition = 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+    if (!hasSpeechRecognition) {
       console.error('Speech recognition not supported in this browser');
       return;
     }
     
     // Create speech recognition instance
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognitionRef.current = new SpeechRecognition();
+    const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionConstructor) {
+      recognitionRef.current = new SpeechRecognitionConstructor() as SpeechRecognitionInstance;
+    }
     
-    // Configure
-    recognitionRef.current.continuous = true;
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.lang = 'en-US';
-    
-    // Event handlers
-    recognitionRef.current.onresult = (event: any) => {
-      let interimTranscript = '';
-      let finalTranscript = '';
+    if (recognitionRef.current) {
+      // Configure
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'en-US';
       
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
-        } else {
-          interimTranscript += transcript;
+      // Event handlers
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+        
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
         }
-      }
+        
+        setTranscript(finalTranscript || interimTranscript);
+      };
       
-      setTranscript(finalTranscript || interimTranscript);
-    };
-    
-    recognitionRef.current.onerror = (event: any) => {
-      console.error('Speech recognition error', event.error);
-      setIsListening(false);
-    };
-    
-    recognitionRef.current.onend = () => {
-      if (isListening) {
-        // Auto restart if we're still supposed to be listening
-        recognitionRef.current.start();
-      }
-    };
+      recognitionRef.current.onerror = (event: SpeechRecognitionErrorEvent) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        if (isListening) {
+          // Auto restart if we're still supposed to be listening
+          recognitionRef.current?.start();
+        }
+      };
+    }
     
     return () => {
       if (recognitionRef.current) {
@@ -294,4 +319,12 @@ export function VoiceTaskInput({ onTaskCreated }: VoiceTaskInputProps) {
       )}
     </div>
   );
+}
+
+// Add these declarations to make TypeScript recognize the Web Speech API
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
 }

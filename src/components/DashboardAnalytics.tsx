@@ -28,6 +28,16 @@ import { Button } from '@/components/ui/button';
 import { SelectGroup, SelectItem } from '@/components/ui/select';
 import { COLORS, PRIORITY_COLORS } from '@/lib/utils';
 
+// Define types for the analytics data
+interface TaskAnalytics {
+  overview: { name: string; value: number }[];
+  priority: { name: string; value: number; color: string }[];
+}
+
+interface ProductivityMetrics {
+  timeSeriesData: { date: string; completed: number; created: number }[];
+}
+
 // Function to generate local task data
 const generateLocalTaskData = () => {
   const overview = [
@@ -55,8 +65,8 @@ export const DashboardAnalytics = () => {
   const { isConfigured, isValid } = useApiKey();
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
   
-  // Enhanced queries with proper error handling in meta object
-  const { data: taskAnalytics, isLoading: isLoadingTaskAnalytics } = useQuery({
+  // Enhanced queries with proper typing
+  const { data: taskAnalytics, isLoading: isLoadingTaskAnalytics } = useQuery<TaskAnalytics>({
     queryKey: ['taskAnalytics', period],
     queryFn: () => apiService.getTaskAnalytics(period),
     meta: {
@@ -67,7 +77,7 @@ export const DashboardAnalytics = () => {
     enabled: isConfigured && isValid === true
   });
 
-  const { data: productivityMetrics, isLoading: isLoadingProductivity } = useQuery({
+  const { data: productivityMetrics, isLoading: isLoadingProductivity } = useQuery<ProductivityMetrics>({
     queryKey: ['productivityMetrics'],
     queryFn: () => apiService.getProductivityMetrics(),
     meta: {
@@ -78,7 +88,7 @@ export const DashboardAnalytics = () => {
     enabled: isConfigured && isValid === true
   });
 
-  const { data: completionRates, isLoading: isLoadingCompletionRates } = useQuery({
+  const { data: completionRates, isLoading: isLoadingCompletionRates } = useQuery<any[]>({
     queryKey: ['completionRates'],
     queryFn: () => apiService.getCompletionRateByCategory(),
     meta: {
@@ -110,6 +120,7 @@ export const DashboardAnalytics = () => {
 
   const isLoading = isLoadingTaskAnalytics || isLoadingProductivity || isLoadingCompletionRates;
 
+  
   return (
     <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
       {/* Task Overview Chart */}

@@ -1,4 +1,5 @@
-import { Task } from "@/types/task";
+
+import { Task, RecurrencePattern } from "@/types/task";
 import { EmailService } from "./emailService";
 import { NotificationService } from "./notificationService";
 import { format } from "date-fns";

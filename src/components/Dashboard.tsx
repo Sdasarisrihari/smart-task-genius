@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { TaskCard } from './TaskCard';
-import TaskForm from './TaskForm';  // Changed from { TaskForm } to TaskForm
+import TaskForm from './TaskForm';
 import { Task } from '../types/task';
 import { 
   PlusCircle, 
@@ -30,6 +29,7 @@ import {
 } from 'recharts';
 import { AdvancedFilter, FilterOptions } from './AdvancedFilter';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Clock } from 'lucide-react';
 
 export const Dashboard = () => {
   const { tasks, categories } = useTaskContext();
@@ -316,12 +316,13 @@ export const Dashboard = () => {
       </Tabs>
 
       <TaskForm 
-        isOpen={isFormOpen} 
-        onClose={() => setIsFormOpen(false)} 
-        task={taskToEdit} 
+        initialTask={taskToEdit} 
+        onCancel={() => setIsFormOpen(false)}
+        onSave={() => setIsFormOpen(false)}
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        task={taskToEdit}
       />
     </div>
   );
 };
-
-import { Clock } from 'lucide-react';

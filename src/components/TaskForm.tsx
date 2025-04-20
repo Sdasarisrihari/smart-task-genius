@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,20 +30,54 @@ interface TaskFormProps {
   onCancel?: () => void;
   onDelete?: () => void;
   isEditing?: boolean;
+  isOpen?: boolean;
+  onClose?: () => void;
+  task?: Task;
+  templateId?: string;
+  isFromTemplate?: boolean;
 }
 
-const TaskForm = ({ initialTask, onSave, onCancel, onDelete, isEditing }: TaskFormProps) => {
-  const { addTask, updateTask, categories } = useTaskContext();
-  const [title, setTitle] = useState(initialTask?.title || '');
-  const [description, setDescription] = useState(initialTask?.description || '');
+const TaskForm = ({ 
+  initialTask, 
+  onSave, 
+  onCancel, 
+  onDelete, 
+  isEditing, 
+  isOpen, 
+  onClose,
+  task,
+  templateId,
+  isFromTemplate
+}: TaskFormProps) => {
+  // Use task prop if provided, otherwise use initialTask
+  const actualTask = task || initialTask;
+  
+  const { addTask, updateTask, categories, createTaskFromTemplate } = useTaskContext();
+  const [title, setTitle] = useState(actualTask?.title || '');
+  const [description, setDescription] = useState(actualTask?.description || '');
   const [dueDate, setDueDate] = useState<Date | undefined>(
-    initialTask?.dueDate ? new Date(initialTask.dueDate) : undefined
+    actualTask?.dueDate ? new Date(actualTask.dueDate) : undefined
   );
-  const [category, setCategory] = useState(initialTask?.category || categories[0]?.id || '');
-  const [priority, setPriority] = useState<PriorityLevel>(initialTask?.priority || 'medium');
+  const [category, setCategory] = useState(actualTask?.category || categories[0]?.id || '');
+  const [priority, setPriority] = useState<PriorityLevel>(actualTask?.priority || 'medium');
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputMethod, setInputMethod] = useState<'form' | 'voice'>('form');
-  const [recurrence, setRecurrence] = useState(initialTask?.recurrence);
+  const [recurrence, setRecurrence] = useState(actualTask?.recurrence);
+  
+  // Handle template if provided
+  useEffect(() => {
+    if (isFromTemplate && templateId) {
+      const createdTask = createTaskFromTemplate(templateId);
+      if (createdTask) {
+        setTitle(createdTask.title || '');
+        setDescription(createdTask.description || '');
+        setDueDate(createdTask.dueDate ? new Date(createdTask.dueDate) : undefined);
+        setCategory(createdTask.category || categories[0]?.id || '');
+        setPriority(createdTask.priority || 'medium');
+        setRecurrence(createdTask.recurrence);
+      }
+    }
+  }, [isFromTemplate, templateId]);
   
   // Validation state
   const [errors, setErrors] = useState({

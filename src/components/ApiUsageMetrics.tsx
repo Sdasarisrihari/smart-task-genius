@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,39 @@ import { useQuery } from '@tanstack/react-query';
 import { apiService } from '@/services/apiService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart as RBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+
+// Define types for the analytics data
+interface TaskAnalytics {
+  overview: { name: string; value: number }[];
+  priority: { name: string; value: number; color: string }[];
+}
+
+interface ProductivityMetrics {
+  timeSeriesData: { date: string; completed: number; created: number }[];
+}
+
+// Function to generate local task data
+const generateLocalTaskData = () => {
+  const overview = [
+    { name: 'Created', value: 200 },
+    { name: 'In Progress', value: 300 },
+    { name: 'Completed', value: 500 },
+  ];
+
+  const priority = [
+    { name: 'High', value: 400, color: PRIORITY_COLORS.high },
+    { name: 'Medium', value: 300, color: PRIORITY_COLORS.medium },
+    { name: 'Low', value: 200, color: PRIORITY_COLORS.low },
+  ];
+
+  const categories = [
+    { name: 'Work', value: 400, color: COLORS[0] },
+    { name: 'Personal', value: 300, color: COLORS[1] },
+    { name: 'Shopping', value: 200, color: COLORS[2] },
+  ];
+
+  return { overview, priority, categories };
+};
 
 export const ApiUsageMetrics = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -127,11 +159,6 @@ export const ApiUsageMetrics = () => {
                   usageStatus === 'warning' ? 'bg-amber-200 dark:bg-amber-900/50' :
                   'bg-green-200 dark:bg-green-900/50'
                 }`}
-                indicatorClassName={
-                  usageStatus === 'critical' ? 'bg-red-600 dark:bg-red-500' :
-                  usageStatus === 'warning' ? 'bg-amber-600 dark:bg-amber-500' :
-                  'bg-green-600 dark:bg-green-500'
-                }
               />
               <div className="mt-1 flex justify-between text-xs">
                 <span className="text-muted-foreground">

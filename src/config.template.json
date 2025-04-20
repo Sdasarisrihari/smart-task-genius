@@ -1,0 +1,15 @@
+
+{
+  "apiKeys": {
+    "openai": "your-openai-key-here",
+    "google": "your-google-api-key-here",
+    "weather": "your-weather-api-key-here"
+  },
+  "settings": {
+    "defaultCategory": "work",
+    "defaultPriority": "medium",
+    "notificationsEnabled": true,
+    "emailNotificationsEnabled": false,
+    "theme": "system"
+  }
+}
