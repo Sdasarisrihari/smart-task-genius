@@ -19,6 +19,8 @@ export interface Task {
   recurrence?: RecurrencePattern;
   isTemplate?: boolean;
   parentRecurringTaskId?: string;
+  isRecurring?: boolean;
+  userId?: string; // Add userId property for shared tasks
 }
 
 export type PriorityLevel = 'high' | 'medium' | 'low';

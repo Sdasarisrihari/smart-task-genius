@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTaskContext } from '@/contexts/TaskContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +12,7 @@ import { toast } from 'sonner';
 import { useApiKey } from '@/hooks/useApiKey';
 import { EmailNotificationsList } from '@/components/EmailNotificationsList';
 import { InfoIcon } from 'lucide-react';
+import { Task } from '@/types/task';
 
 const SharedTasks = () => {
   const { getSharedTasks, tasks } = useTaskContext();
@@ -81,7 +81,7 @@ const SharedTasks = () => {
               
               <TabsContent value="shared-with-me" className="space-y-4">
                 {sharedTasks
-                  .filter(task => !task.userId) // In this demo, tasks without userId are ones shared with me
+                  .filter(task => !task.userId) // Filter tasks without userId since Task now includes this property
                   .map(task => (
                     <TaskCard key={task.id} task={task} />
                   ))}
@@ -103,7 +103,7 @@ const SharedTasks = () => {
 };
 
 // Enhanced Task Card component for shared tasks
-const TaskCard = ({ task }) => {
+const TaskCard = ({ task }: { task: Task }) => {
   return (
     <Card>
       <CardContent className="p-4">

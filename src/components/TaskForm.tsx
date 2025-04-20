@@ -99,9 +99,13 @@ const TaskForm = ({
       dueDate: dueDate ? dueDate.toISOString() : null,
       category,
       priority,
-      recurrence,
-      isRecurring: !!recurrence
+      recurrence
     };
+    
+    // Only set isRecurring if recurrence exists
+    if (recurrence) {
+      taskData.isRecurring = true;
+    }
 
     if (isEditing && initialTask) {
       // Update existing task
