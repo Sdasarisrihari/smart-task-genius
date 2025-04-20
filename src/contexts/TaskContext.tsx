@@ -42,6 +42,7 @@ export interface TaskContextType {
   getSharedTasks: () => Task[];
   exportTasks: () => string;
   importTasks: (jsonData: string) => void;
+  importCategories: (categories: Category[]) => void;
   addTaskDependency: (taskId: string, dependsOnTaskId: string) => void;
   removeTaskDependency: (taskId: string, dependsOnTaskId: string) => void;
   getTaskDependencies: (taskId: string) => Task[];
@@ -377,6 +378,16 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
     );
   };
 
+  const importCategories = (newCategories: Category[]) => {
+    setCategories(prevCategories => {
+      // Merge with existing categories, avoiding duplicates by ID
+      const existingIds = new Set(prevCategories.map(c => c.id));
+      const uniqueNewCategories = newCategories.filter(c => !existingIds.has(c.id));
+      return [...prevCategories, ...uniqueNewCategories];
+    });
+    toast.success("Categories imported successfully");
+  };
+
   const contextValue: TaskContextType = {
     tasks,
     categories,
@@ -407,6 +418,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
     getSharedTasks,
     exportTasks,
     importTasks,
+    importCategories,
     addTaskDependency,
     removeTaskDependency,
     getTaskDependencies,

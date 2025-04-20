@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import {
   Card,
@@ -65,10 +66,17 @@ export const DashboardAnalytics = () => {
   const { isConfigured, isValid } = useApiKey();
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'year'>('month');
   
-  // Enhanced queries with proper typing
+  // Enhanced queries with proper typing and queryFn implementation
   const { data: taskAnalytics, isLoading: isLoadingTaskAnalytics } = useQuery<TaskAnalytics>({
     queryKey: ['taskAnalytics', period],
-    queryFn: () => apiService.getTaskAnalytics(period),
+    queryFn: async () => {
+      try {
+        return await apiService.getTaskAnalytics(period);
+      } catch (error) {
+        console.error('Failed to fetch task analytics:', error);
+        return { overview: [], priority: [] };
+      }
+    },
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch task analytics:', error);
@@ -79,7 +87,14 @@ export const DashboardAnalytics = () => {
 
   const { data: productivityMetrics, isLoading: isLoadingProductivity } = useQuery<ProductivityMetrics>({
     queryKey: ['productivityMetrics'],
-    queryFn: () => apiService.getProductivityMetrics(),
+    queryFn: async () => {
+      try {
+        return await apiService.getProductivityMetrics();
+      } catch (error) {
+        console.error('Failed to fetch productivity metrics:', error);
+        return { timeSeriesData: [] };
+      }
+    },
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch productivity metrics:', error);
@@ -90,7 +105,14 @@ export const DashboardAnalytics = () => {
 
   const { data: completionRates, isLoading: isLoadingCompletionRates } = useQuery<any[]>({
     queryKey: ['completionRates'],
-    queryFn: () => apiService.getCompletionRateByCategory(),
+    queryFn: async () => {
+      try {
+        return await apiService.getCompletionRateByCategory();
+      } catch (error) {
+        console.error('Failed to fetch completion rates:', error);
+        return [];
+      }
+    },
     meta: {
       onError: (error: Error) => {
         console.error('Failed to fetch completion rates:', error);
