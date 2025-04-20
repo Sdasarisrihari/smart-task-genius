@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CalendarProvider, CalendarService } from '../services/calendarService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { DayContentProps } from 'react-day-picker';
 
 const Calendar = () => {
   const { tasks, updateTask } = useTaskContext();
@@ -135,11 +136,10 @@ const Calendar = () => {
                 day_disabled: 'text-gray-300 dark:text-gray-600',
               }}
               components={{
-                DayContent: ({ date }) => (
+                DayContent: ({ date }: DayContentProps) => (
                   <div className={cn(
                     'relative flex h-8 w-8 items-center justify-center',
-                    datesWithTasks.some(taskDate => isSameDay(taskDate, date)) && 
-                      date.getTime() !== (date?.getTime() ?? 0)
+                    datesWithTasks.some(taskDate => isSameDay(taskDate, date)) 
                       ? 'bg-blue-100 dark:bg-blue-900/40 rounded-full'
                       : '',
                     recurrenceCssClasses(date)
