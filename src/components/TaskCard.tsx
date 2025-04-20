@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Task } from '../types/task';
 import { format } from 'date-fns';
@@ -35,6 +34,7 @@ export const TaskCard = ({ task, onEdit }: TaskCardProps) => {
   };
 
   return (
+    
     <div 
       className={cn(
         "task-card animate-fade-in flex flex-col",

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +15,7 @@ import { CalendarIcon, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTaskContext } from '../contexts/TaskContext';
-import { Task, PriorityLevel } from '@/types/task';
+import { Task, PriorityLevel, RecurrencePattern } from '@/types/task';
 import { cn } from '@/lib/utils';
 import { RecurrenceSelector } from './RecurrenceSelector';
 import { VoiceTaskInput } from './VoiceTaskInput';
@@ -62,7 +61,7 @@ const TaskForm = ({
   const [priority, setPriority] = useState<PriorityLevel>(actualTask?.priority || 'medium');
   const [isExpanded, setIsExpanded] = useState(false);
   const [inputMethod, setInputMethod] = useState<'form' | 'voice'>('form');
-  const [recurrence, setRecurrence] = useState(actualTask?.recurrence);
+  const [recurrence, setRecurrence] = useState<RecurrencePattern | undefined>(actualTask?.recurrence);
   
   // Handle template if provided
   useEffect(() => {
@@ -77,7 +76,7 @@ const TaskForm = ({
         setRecurrence(createdTask.recurrence);
       }
     }
-  }, [isFromTemplate, templateId]);
+  }, [isFromTemplate, templateId, createTaskFromTemplate, categories]);
   
   // Validation state
   const [errors, setErrors] = useState({

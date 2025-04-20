@@ -69,9 +69,9 @@ export const AdvancedFileUpload = ({ taskId, onUploadComplete }: AdvancedFileUpl
         setProgress(100);
         
         const newAttachment: Omit<TaskAttachment, 'id'> = {
-          name: selectedFile.name,
-          type: selectedFile.type,
-          size: selectedFile.size,
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+          fileSize: selectedFile.size,
           url: URL.createObjectURL(selectedFile) // In a real app, this would be the URL from the API response
         };
         

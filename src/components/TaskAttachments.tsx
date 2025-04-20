@@ -30,9 +30,9 @@ export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
     // In a real app, you would upload to a storage service
     // Here we'll simulate by creating a URL
     const attachment: Omit<TaskAttachment, 'id'> = {
-      name: file.name,
-      type: file.type,
-      size: file.size,
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
       url: URL.createObjectURL(file) // In a real app, this would be the upload URL
     };
     
@@ -100,12 +100,12 @@ export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
               >
                 <div className="flex items-center">
                   <div className="mr-3">
-                    {getFileIcon(attachment.type)}
+                    {getFileIcon(attachment.fileType)}
                   </div>
                   <div>
-                    <div className="font-medium text-sm">{attachment.name}</div>
+                    <div className="font-medium text-sm">{attachment.fileName}</div>
                     <div className="text-xs text-muted-foreground">
-                      {formatFileSize(attachment.size)}
+                      {formatFileSize(attachment.fileSize)}
                     </div>
                   </div>
                 </div>
@@ -115,7 +115,7 @@ export const TaskAttachments = ({ task }: TaskAttachmentsProps) => {
                     size="sm"
                     asChild
                   >
-                    <a href={attachment.url} download={attachment.name} target="_blank">
+                    <a href={attachment.url} download={attachment.fileName} target="_blank">
                       <Download className="h-4 w-4" />
                     </a>
                   </Button>

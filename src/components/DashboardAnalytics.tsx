@@ -27,15 +27,22 @@ import { useQuery } from '@tanstack/react-query';
 import { useApiKey } from '@/hooks/useApiKey';
 import { Button } from '@/components/ui/button';
 import { SelectGroup, SelectItem } from '@/components/ui/select';
-import { COLORS, PRIORITY_COLORS } from '@/lib/utils';
+
+// Define color constants
+export const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088fe', '#00C49F'];
+export const PRIORITY_COLORS = {
+  high: '#ef4444',
+  medium: '#f59e0b',
+  low: '#3b82f6'
+};
 
 // Define types for the analytics data
-interface TaskAnalytics {
+export interface TaskAnalytics {
   overview: { name: string; value: number }[];
   priority: { name: string; value: number; color: string }[];
 }
 
-interface ProductivityMetrics {
+export interface ProductivityMetrics {
   timeSeriesData: { date: string; completed: number; created: number }[];
 }
 
@@ -71,10 +78,14 @@ export const DashboardAnalytics = () => {
     queryKey: ['taskAnalytics', period],
     queryFn: async () => {
       try {
-        return await apiService.getTaskAnalytics(period);
+        const data = await apiService.getTaskAnalytics(period);
+        return data as TaskAnalytics;
       } catch (error) {
         console.error('Failed to fetch task analytics:', error);
-        return { overview: [], priority: [] };
+        return {
+          overview: [],
+          priority: []
+        };
       }
     },
     meta: {
@@ -89,10 +100,13 @@ export const DashboardAnalytics = () => {
     queryKey: ['productivityMetrics'],
     queryFn: async () => {
       try {
-        return await apiService.getProductivityMetrics();
+        const data = await apiService.getProductivityMetrics();
+        return data as ProductivityMetrics;
       } catch (error) {
         console.error('Failed to fetch productivity metrics:', error);
-        return { timeSeriesData: [] };
+        return {
+          timeSeriesData: []
+        };
       }
     },
     meta: {
@@ -107,7 +121,8 @@ export const DashboardAnalytics = () => {
     queryKey: ['completionRates'],
     queryFn: async () => {
       try {
-        return await apiService.getCompletionRateByCategory();
+        const data = await apiService.getCompletionRateByCategory();
+        return data as any[];
       } catch (error) {
         console.error('Failed to fetch completion rates:', error);
         return [];

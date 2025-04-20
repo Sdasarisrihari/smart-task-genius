@@ -1,3 +1,4 @@
+
 export interface Task {
   id: string;
   title: string;
@@ -14,6 +15,10 @@ export interface Task {
   shared?: boolean;
   collaborators?: Collaborator[];
   dependencies?: string[];
+  timeTracking?: TimeTracking;
+  recurrence?: RecurrencePattern;
+  isTemplate?: boolean;
+  parentRecurringTaskId?: string;
 }
 
 export type PriorityLevel = 'high' | 'medium' | 'low';
@@ -30,6 +35,31 @@ export interface TaskAttachment {
   fileSize: number;
   fileType: string;
   url: string;
+}
+
+export interface TimeTracking {
+  estimatedMinutes: number;
+  actualMinutes: number;
+  logs: TimeLogEntry[];
+}
+
+export interface TimeLogEntry {
+  id: string;
+  taskId: string;
+  startTime: Date | string;
+  endTime: Date | string;
+  durationMinutes: number;
+  notes?: string;
+}
+
+export interface RecurrencePattern {
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  interval: number;
+  daysOfWeek?: number[];
+  dayOfMonth?: number;
+  monthOfYear?: number;
+  endDate?: string;
+  endAfterOccurrences?: number;
 }
 
 import { TaskTemplate } from './taskTemplate';
@@ -65,7 +95,7 @@ export interface TaskContextType {
   getSharedTasks: () => Task[];
   exportTasks: () => string;
   importTasks: (jsonData: string) => void;
-  importCategories: (categories: Category[]) => void; // Add this missing function
+  importCategories: (categories: Category[]) => void;
   addTaskDependency: (taskId: string, dependsOnTaskId: string) => void;
   removeTaskDependency: (taskId: string, dependsOnTaskId: string) => void;
   getTaskDependencies: (taskId: string) => Task[];
