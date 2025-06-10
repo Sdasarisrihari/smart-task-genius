@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -24,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -39,7 +39,7 @@ const Login = () => {
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email' | 'phone'>('email');
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   
   // Redirect if already authenticated
@@ -170,7 +170,7 @@ const Login = () => {
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="email" value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'phone')}>
+          <Tabs defaultValue="email" value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'phone'>('email' | 'phone'))}>
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="email">Email</TabsTrigger>
               <TabsTrigger value="phone">Phone</TabsTrigger>
@@ -366,7 +366,7 @@ const Login = () => {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <FormLabel htmlFor="reset-email">Email</FormLabel>
+              <Label htmlFor="reset-email">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                 <Input 
