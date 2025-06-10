@@ -39,7 +39,7 @@ const Login = () => {
   const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email' | 'phone'>('email');
+  const [loginMethod, setLoginMethod] = useState<'email' | 'phone'>('email');
   const [lastLogin, setLastLogin] = useState<string | null>(null);
   
   // Redirect if already authenticated
@@ -170,7 +170,7 @@ const Login = () => {
           <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="email" value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'phone'>('email' | 'phone'))}>
+          <Tabs defaultValue="email" value={loginMethod} onValueChange={(v) => setLoginMethod(v as 'email' | 'phone')}>
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="email">Email</TabsTrigger>
               <TabsTrigger value="phone">Phone</TabsTrigger>
